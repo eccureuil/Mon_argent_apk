@@ -50,7 +50,7 @@ Gestion de finances personnelles 100% hors-ligne. Suivi multi-comptes (Espèces,
 ## Installation
 
 ```bash
-git clone https://github.com/<votre-user>/Mon_argent.git
+git clone https://github.com/eccureuil/Mon_argent.git
 cd Mon_argent
 npm install
 ```
