@@ -1,0 +1,68 @@
+import { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../hooks/useTheme';
+import { formatAr } from '../utils/format';
+
+interface SoldeCardProps {
+  titre: string;
+  solde: number;
+  accentColor: string;
+  children?: React.ReactNode;
+}
+
+export default function SoldeCard({
+  titre,
+  solde,
+  accentColor,
+  children,
+}: SoldeCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const isNegative = solde < 0;
+
+  return (
+    <View style={[styles.card, { borderLeftColor: accentColor }]}>
+      <Text style={styles.titre}>{titre}</Text>
+      <Text style={[styles.solde, isNegative && styles.negative]}>
+        {formatAr(solde)}
+      </Text>
+      {children && <View style={styles.children}>{children}</View>}
+    </View>
+  );
+}
+
+function createStyles(c: Record<string, any>) {
+  return StyleSheet.create({
+    card: {
+      flex: 1,
+      backgroundColor: c.card,
+      borderRadius: 12,
+      padding: 16,
+      borderLeftWidth: 3,
+      margin: 4,
+    },
+    titre: {
+      color: c.textSec,
+      fontSize: 12,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      marginBottom: 4,
+    },
+    solde: {
+      color: c.text,
+      fontSize: 22,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
+    negative: {
+      color: c.danger,
+    },
+    children: {
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      paddingTop: 8,
+      marginTop: 4,
+    },
+  });
+}
