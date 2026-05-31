@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "mon_argent",
+    "scheme": "monargent",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
