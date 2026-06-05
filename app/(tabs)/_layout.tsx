@@ -13,6 +13,7 @@ const tabIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   epargne: 'business',
   rapport: 'bar-chart',
   factures: 'document-text',
+  parametres: 'settings-outline',
 };
 
 export default function TabsLayout() {
@@ -83,6 +84,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="factures"
         options={{ tabBarLabel: 'Factures' }}
+      />
+      <Tabs.Screen
+        name="parametres"
+        options={{ tabBarLabel: 'Paramètres' }}
       />
     </Tabs>
   );

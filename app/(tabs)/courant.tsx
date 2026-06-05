@@ -23,6 +23,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
+import { checkBudgetAlert } from '../../hooks/useParametres';
 import StockageTabs from '../../components/StockageTabs';
 import MonthSelector from '../../components/MonthSelector';
 import TransactionItem from '../../components/TransactionItem';
@@ -136,7 +137,25 @@ export default function CourantScreen() {
         txDescription.trim() || undefined
       );
       setModalVisible(false);
-      loadData();
+      await loadData();
+
+      if (txType === 'sortie') {
+        const alert = await checkBudgetAlert(userId, txCategorie, stockage);
+        if (alert) {
+          const catLabel = courantCategories.find((c) => c.value === txCategorie)?.label ?? txCategorie;
+          if (alert.depasse) {
+            Alert.alert(
+              '⚠️ Plafond dépassé',
+              `Vous avez dépassé votre règle budgétaire pour ${catLabel}.\nDépensé ce mois : ${formatAr(alert.depense)} / Plafond : ${formatAr(alert.max)}`
+            );
+          } else if (alert.pourcentage >= 80) {
+            Alert.alert(
+              '💡 Attention budget',
+              `Vous avez utilisé ${alert.pourcentage}% de votre budget ${catLabel} ce mois.`
+            );
+          }
+        }
+      }
     } catch (err) {
       Alert.alert('Erreur', 'Impossible d\'ajouter la transaction');
     } finally {

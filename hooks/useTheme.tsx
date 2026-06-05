@@ -2,59 +2,67 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { useColorScheme } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { colors, lightColors, type ColorPalette } from '../constants/colors';
+import type { ThemePreference } from '../types';
 
 type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
   theme: Theme;
   colors: ColorPalette;
+  themePreference: ThemePreference;
   toggleTheme: () => void;
-  setTheme: (t: Theme) => void;
+  setTheme: (t: ThemePreference) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
 const THEME_KEY = 'theme_preference';
 
+function resolveTheme(pref: ThemePreference, systemScheme: 'dark' | 'light'): Theme {
+  if (pref === 'system') return systemScheme;
+  return pref;
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('dark');
 
   useEffect(() => {
     (async () => {
       try {
         const saved = await SecureStore.getItemAsync(THEME_KEY);
-        if (saved === 'light' || saved === 'dark') {
-          setThemeState(saved);
-        } else {
-          setThemeState(systemScheme === 'dark' ? 'dark' : 'light');
+        if (saved === 'light' || saved === 'dark' || saved === 'system') {
+          setThemePreferenceState(saved);
         }
-      } catch {
-        setThemeState(systemScheme === 'dark' ? 'dark' : 'light');
-      }
+      } catch {}
     })();
-  }, [systemScheme]);
+  }, []);
 
-  const setTheme = useCallback(async (t: Theme) => {
-    setThemeState(t);
+  const theme = resolveTheme(themePreference, systemScheme ?? 'dark');
+
+  const setTheme = useCallback(async (t: ThemePreference) => {
+    setThemePreferenceState(t);
     try {
       await SecureStore.setItemAsync(THEME_KEY, t);
     } catch {}
   }, []);
 
   const toggleTheme = useCallback(async () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setThemeState(next);
+    const order: ThemePreference[] = ['system', 'dark', 'light'];
+    const idx = order.indexOf(themePreference);
+    const next = order[(idx + 1) % order.length];
+    setThemePreferenceState(next);
     try {
       await SecureStore.setItemAsync(THEME_KEY, next);
     } catch {}
-  }, [theme]);
+  }, [themePreference]);
 
   return (
     <ThemeContext.Provider
       value={{
         theme,
         colors: theme === 'dark' ? colors : lightColors,
+        themePreference,
         toggleTheme,
         setTheme,
       }}

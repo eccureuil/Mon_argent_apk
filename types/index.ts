@@ -82,3 +82,13 @@ export interface EpargneEvolution {
   date: string;
   solde: number;
 }
+
+export interface RegleBudget {
+  id: number;
+  user_id: number;
+  categorie: string;
+  montant_max: number;
+  periode: 'mensuel' | 'hebdomadaire';
+}
+
+export type ThemePreference = 'dark' | 'light' | 'system';

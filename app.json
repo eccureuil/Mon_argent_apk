@@ -7,6 +7,15 @@
     "icon": "./assets/icon.png",
     "scheme": "monargent",
     "userInterfaceStyle": "automatic",
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/b55b101f-7b0a-4d76-84d9-c99c36d16f83"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
       "supportsTablet": true
     },

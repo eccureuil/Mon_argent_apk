@@ -13,29 +13,34 @@ Expo SDK 54, Expo Router 6, TypeScript strict, all data in local SQLite (expo-sq
 | `npm run ios` | `expo run:ios` (dev-client build) |
 | `npm run web` | `expo start --web` |
 | Type-check | `npx tsc --noEmit` |
-| EAS APK | `eas build --platform android --profile preview` |
+| EAS APK preview | `eas build --platform android --profile preview` |
+| EAS APK production | `eas build --platform android --profile production` |
+| OTA update preview | `eas update --channel preview --message "description"` |
+| OTA update production | `eas update --channel production --message "description"` |
 
 ## Project structure
 
 ```
-database/db.ts              → lazy singleton getDb(), 5 tables (auto-CREATE)
+database/db.ts              → lazy singleton getDb(), 7 tables (auto-CREATE)
 database/userRepository.ts  → register/login/validateSession/logout
 hooks/useSession.tsx        → SessionProvider context + useSession()
 hooks/useTheme.tsx          → ThemeProvider context + useTheme()
-hooks/use{Courant,Epargne,Factures,Rapport}.ts → raw SQL in useCallback
+hooks/use{Courant,Epargne,Factures,Rapport,Parametres}.ts → raw SQL in useCallback / standalone async fns
 services/notifications.ts   → daily at 19:00 + overdue on foreground
-app/_layout.tsx             → SessionProvider + ThemeProvider + AppState listener
+app/_layout.tsx             → SessionProvider + ThemeProvider + AppState listener + OTA updater
 app/(auth)/                 → login, register, initial-setup (Stack)
-app/(tabs)/                 → 5 tabs: Accueil, Courant, Épargne, Rapport, Factures
+app/(tabs)/                 → 6 tabs: Accueil, Courant, Épargne, Rapport, Factures, Paramètres
 ```
 
-## Data model (5 tables)
+## Data model (7 tables)
 
 - `users` – username + SHA-256 hash (one user per device)
 - `sessions` – token-based (stored in SecureStore key `session_token`)
 - `courant_transactions` – type (`entree`/`sortie`), stockage (`espece`/`mobile_money`/`banque`), source (`manuel`/`facture`), optional `facture_id`
 - `epargne_transactions` – type, montant, description, date
 - `factures` – payee (boolean), optional `courant_transaction_id`
+- `parametres` – key-value settings per user (UNIQUE user_id + cle)
+- `regles_budget` – budget rules per category: montant_max + periode (`mensuel`/`hebdomadaire`)
 
 ## Key conventions
 

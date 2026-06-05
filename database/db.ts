@@ -65,6 +65,25 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       notif_sent BOOLEAN DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS parametres (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      cle TEXT NOT NULL,
+      valeur TEXT NOT NULL,
+      UNIQUE(user_id, cle),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS regles_budget (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      categorie TEXT NOT NULL,
+      montant_max REAL NOT NULL,
+      periode TEXT NOT NULL DEFAULT 'mensuel' CHECK(periode IN ('mensuel','hebdomadaire')),
+      UNIQUE(user_id, categorie),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
   `);
 }
 
@@ -75,6 +94,8 @@ export async function resetDatabase(): Promise<void> {
       DROP TABLE IF EXISTS epargne_transactions;
       DROP TABLE IF EXISTS courant_transactions;
       DROP TABLE IF EXISTS sessions;
+      DROP TABLE IF EXISTS parametres;
+      DROP TABLE IF EXISTS regles_budget;
       DROP TABLE IF EXISTS users;
     `);
     db = null;

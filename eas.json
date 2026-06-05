@@ -2,11 +2,20 @@
   "cli": { "version": ">= 16.0.0" },
   "build": {
     "preview": {
+      "channel": "preview",
       "android": { "buildType": "apk" },
       "distribution": "internal",
       "env": {
         "EAS_BUILD_DISABLE_NPM_CACHE": "true"
       }
+    },
+    "production": {
+      "channel": "production",
+      "android": { "buildType": "apk" }
     }
+  },
+  "update": {
+    "production": { "channel": "production" },
+    "preview": { "channel": "preview" }
   }
 }

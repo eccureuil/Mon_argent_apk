@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AppState } from 'react-native';
+import * as Updates from 'expo-updates';
 import { SessionProvider, useSession } from '../hooks/useSession';
 import { ThemeProvider, useTheme } from '../hooks/useTheme';
 import {
@@ -40,6 +41,24 @@ function NotificationManager() {
   return null;
 }
 
+function OtaUpdater() {
+  useEffect(() => {
+    async function checkUpdate() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (e) {
+        // silently ignore in dev
+      }
+    }
+    if (!__DEV__) checkUpdate();
+  }, []);
+  return null;
+}
+
 function ThemedStatusBar() {
   const { theme } = useTheme();
   return <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />;
@@ -49,6 +68,7 @@ export default function RootLayout() {
   return (
     <SessionProvider>
       <ThemeProvider>
+        <OtaUpdater />
         <ThemedStatusBar />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
