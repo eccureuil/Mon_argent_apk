@@ -54,7 +54,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await SecureStore.deleteItemAsync('setup_done');
     await logoutUser();
     setUser(null);
   }, []);

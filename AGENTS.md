@@ -1,51 +1,60 @@
-# Mon_argent — Complete Application
+# Mon_argent
 
 ## Stack
 
-Expo SDK 54 (latest on App Store), Expo Router, TypeScript strict, local SQLite (expo-sqlite v16 async API), all data on-device.
+Expo SDK 54, Expo Router 6, TypeScript strict, all data in local SQLite (expo-sqlite v16 async). 100% offline.
 
-## Architecture
+## Commands
 
-```
-constants/   → colors.ts, categories.ts
-types/       → index.ts (9 interfaces), picker.d.ts (type fix)
-utils/       → format.ts (formatAr, formatDate, formatDateTime, etc.)
-database/    → db.ts (4 tables), userRepository.ts (auth CRUD)
-hooks/       → useSession.tsx, useCourant.ts, useEpargne.ts, useFactures.ts, useRapport.ts
-components/  → 8 reusable components (SoldeCard, TransactionItem, FactureCard, etc.)
-services/    → notifications.ts (daily summary + overdue bills)
-app/
-├── _layout.tsx           (SessionProvider + AppState notification manager)
-├── (auth)/
-│   ├── _layout.tsx       (session guard → redirect to tabs)
-│   ├── login.tsx
-│   └── register.tsx
-└── (tabs)/
-    ├── _layout.tsx       (5 tabs: Accueil, Courant, Épargne, Rapport, Factures)
-    ├── index.tsx         (Dashboard: soldes, charts, transfert, urgent bills)
-    ├── courant.tsx       (3 sous-tabs: Espèces/Mobile Money/Banque)
-    ├── epargne.tsx       (Épargne CRUD)
-    ├── factures.tsx      (CRUD + payment → auto-expense in Courant)
-    └── rapport.tsx       (analytics with Bar/Pie/Line charts)
-```
+| Script | Actual command |
+|---|---|
+| `npm start` | `expo start` |
+| `npm run android` | `expo run:android` (dev-client build) |
+| `npm run ios` | `expo run:ios` (dev-client build) |
+| `npm run web` | `expo start --web` |
+| Type-check | `npx tsc --noEmit` |
+| EAS APK | `eas build --platform android --profile preview` |
 
-## Scripts
+## Project structure
 
 ```
-start   → expo start
-android → expo start --android
-ios     → expo start --ios
-web     → expo start --web
+database/db.ts              → lazy singleton getDb(), 5 tables (auto-CREATE)
+database/userRepository.ts  → register/login/validateSession/logout
+hooks/useSession.tsx        → SessionProvider context + useSession()
+hooks/useTheme.tsx          → ThemeProvider context + useTheme()
+hooks/use{Courant,Epargne,Factures,Rapport}.ts → raw SQL in useCallback
+services/notifications.ts   → daily at 19:00 + overdue on foreground
+app/_layout.tsx             → SessionProvider + ThemeProvider + AppState listener
+app/(auth)/                 → login, register, initial-setup (Stack)
+app/(tabs)/                 → 5 tabs: Accueil, Courant, Épargne, Rapport, Factures
 ```
 
-Type-check: `npx tsc --noEmit`
+## Data model (5 tables)
 
-## Notes
+- `users` – username + SHA-256 hash (one user per device)
+- `sessions` – token-based (stored in SecureStore key `session_token`)
+- `courant_transactions` – type (`entree`/`sortie`), stockage (`espece`/`mobile_money`/`banque`), source (`manuel`/`facture`), optional `facture_id`
+- `epargne_transactions` – type, montant, description, date
+- `factures` – payee (boolean), optional `courant_transaction_id`
 
-- 100% offline, dark theme, French locale
-- Currency: Ariary (Ar) via `formatAr()`
-- Auth: SHA-256 via expo-crypto, sessions via expo-secure-store
-- 3 independent wallets (Espèces/Mobile Money/Banque) within Compte Courant
-- Bill payment auto-creates expense in Courant
-- Daily notification at 19:00 + overdue bill alerts
-- Compatible with Expo Go SDK 54
+## Key conventions
+
+- **French locale** throughout; currency = Ariary via `formatAr()` with space-separated thousands
+- **Dark theme** default; preference persisted in SecureStore key `theme_preference`; follows system scheme
+- **3 wallets** in Compte Courant: `espece`, `mobile_money`, `banque` — enum `StockageType`
+- **No external state library** — React Context + raw SQL hooks
+- **Data loading** on screen focus via `useFocusEffect`; pull-to-refresh via `RefreshControl`
+- **Modal bottom sheets** for all forms (bottom-up animation)
+- **Component styling:** `createStyles(c: Record<string, string>)` factory called with `useMemo(…)`, receives palette from `useTheme()`
+- **Bill payment flow:** `payerFacture()` creates a `courant_transaction` (source=`facture`, links `facture_id`), then marks facture as paid
+- **Wallet transfer:** creates a `sortie` on source + `entree` on destination wallet; Courant→Épargne uses same pair pattern
+- **Categories** defined as const arrays with icon names in `constants/categories.ts`
+
+## Setup quirks
+
+- `.npmrc` sets `legacy-peer-deps=true` — use `npm install` not `npm ci`
+- AGENTS.md and CLAUDE.md are **gitignored** (see `.gitignore`)
+- **No tests, no linter, no CI** — type-check via `npx tsc --noEmit` is the only quality gate
+- `expo start` runs in Expo Go (SDK 54 compatible); `expo run:android`/`expo run:ios` produce dev-client builds
+- App entrypoint via `expo-router/entry` in package.json `main`
+- Uses `expo-crypto` SHA-256 (not bcrypt/scrypt) for password hashing

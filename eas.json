@@ -4,10 +4,8 @@
     "preview": {
       "android": { "buildType": "apk" },
       "distribution": "internal",
-      "node": "22.x",
       "env": {
-        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
-        "EAS_BUILD_DISABLE_NPM_CACHE": "1"
+        "EAS_BUILD_DISABLE_NPM_CACHE": "true"
       }
     }
   }
