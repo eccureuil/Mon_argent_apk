@@ -493,6 +493,7 @@ export default function DashboardScreen() {
                   <Text style={styles.detailLabel}>Date</Text>
                   <Text style={styles.detailValue}>{formatDate(detailItem.date)} à {formatTime(detailItem.date)}</Text>
                 </View>
+                <View style={{ height: 24 }} />
               </>
             )}
           </View>

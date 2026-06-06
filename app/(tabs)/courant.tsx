@@ -662,6 +662,7 @@ export default function CourantScreen() {
                     </View>
                   </View>
                 )}
+                <View style={{ height: 24 }} />
               </>
             )}
           </View>
