@@ -26,6 +26,7 @@ import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
 import { useEpargne } from '../../hooks/useEpargne';
 import { useFactures } from '../../hooks/useFactures';
+import { useRapport } from '../../hooks/useRapport';
 import { getCategories } from '../../hooks/useCategories';
 import SoldeCard from '../../components/SoldeCard';
 import MonthSelector from '../../components/MonthSelector';
@@ -47,6 +48,7 @@ export default function DashboardScreen() {
   const courant = useCourant(userId);
   const epargne = useEpargne(userId);
   const factures = useFactures(userId);
+  const rapport = useRapport(userId);
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -59,6 +61,8 @@ export default function DashboardScreen() {
   const [urgentFactures, setUrgentFactures] = useState<Facture[]>([]);
   const [monthlyEntrees, setMonthlyEntrees] = useState(0);
   const [monthlySorties, setMonthlySorties] = useState(0);
+  const [reportCourant, setReportCourant] = useState(0);
+  const [reportEpargne, setReportEpargne] = useState(0);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<UserCategory[]>([]);
 
@@ -76,16 +80,19 @@ export default function DashboardScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [soldeC, soldeE, allTx, bills, cats] = await Promise.all([
+      const [soldeC, soldeE, allTx, prevReport, bills, cats] = await Promise.all([
         courant.getSoldeByStockage(),
         epargne.getSolde(),
         courant.getAllTransactions(month, year),
+        rapport.getPreviousMonthSolde(month, year),
         factures.getFactures(),
         getCategories(userId),
       ]);
 
       setSoldeCourant(soldeC);
       setSoldeEpargne(soldeE);
+      setReportCourant(prevReport.courant);
+      setReportEpargne(prevReport.epargne);
       setRecentTx(allTx.slice(0, 5));
       setCategories(cats);
       setUrgentFactures(
@@ -272,6 +279,19 @@ export default function DashboardScreen() {
               {formatAr(monthlyEntrees - monthlySorties)}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.reportRow}>
+          <Ionicons name="caret-back" size={16} color={colors.textMuted} />
+          <Text style={styles.reportLabel}>Report</Text>
+          <Text style={styles.reportValue}>{formatAr(reportCourant + reportEpargne)}</Text>
+          <Text style={styles.reportSep}>+</Text>
+          <Text style={styles.reportLabel}>Flux</Text>
+          <Text style={styles.reportValue}>{formatAr(monthlyEntrees - monthlySorties)}</Text>
+          <Text style={styles.reportSep}>=</Text>
+          <Text style={[styles.reportValue, { color: colors.text, fontWeight: '700' }]}>
+            {formatAr(reportCourant + reportEpargne + monthlyEntrees - monthlySorties)}
+          </Text>
         </View>
 
         <View style={styles.section}>
@@ -567,6 +587,32 @@ function createStyles(c: ColorPalette) {
       fontSize: 14,
       fontWeight: '700',
       fontFamily: 'IBMPlexSans_700Bold',
+    },
+    reportRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      marginHorizontal: 16,
+      marginTop: 8,
+      backgroundColor: c.card,
+      borderRadius: 10,
+    },
+    reportLabel: {
+      color: c.textMuted,
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    reportValue: {
+      color: c.text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    reportSep: {
+      color: c.textMuted,
+      fontSize: 13,
     },
     section: {
       marginTop: 20,
