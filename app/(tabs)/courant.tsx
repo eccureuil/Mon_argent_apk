@@ -25,10 +25,9 @@ import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
 import { checkBudgetAlert } from '../../hooks/useParametres';
 import StockageTabs from '../../components/StockageTabs';
-import MonthSelector from '../../components/MonthSelector';
 import TransactionItem from '../../components/TransactionItem';
 import EmptyState from '../../components/EmptyState';
-import { formatAr, formatMonthYear } from '../../utils/format';
+import { formatAr, formatDate, formatTime } from '../../utils/format';
 import { courantCategories, stockageLabels, stockages } from '../../constants/categories';
 import type { StockageType, CourantTransaction, TransactionType } from '../../types';
 
@@ -43,12 +42,13 @@ export default function CourantScreen() {
 
   const now = new Date();
   const [stockage, setStockage] = useState<StockageType>('espece');
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
   const [solde, setSolde] = useState(0);
   const [transactions, setTransactions] = useState<CourantTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDayPicker, setShowDayPicker] = useState(false);
+  const [detailItem, setDetailItem] = useState<CourantTransaction | null>(null);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [txType, setTxType] = useState<TransactionType>('entree');
@@ -66,11 +66,13 @@ export default function CourantScreen() {
   const [transferFrais, setTransferFrais] = useState('');
   const [transferSaving, setTransferSaving] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (forDate: Date) => {
     try {
+      const m = forDate.getMonth() + 1;
+      const y = forDate.getFullYear();
       const [soldeData, txData] = await Promise.all([
         getSoldeByStockage(),
-        getTransactions(stockage, month, year),
+        getTransactions(stockage, m, y),
       ]);
       setSolde(soldeData[stockage]);
       setTransactions(txData);
@@ -79,19 +81,21 @@ export default function CourantScreen() {
     } finally {
       setLoading(false);
     }
-  }, [getSoldeByStockage, getTransactions, stockage, month, year]);
+  }, [getSoldeByStockage, getTransactions, stockage]);
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
+      const today = new Date();
+      setSelectedDate(today);
+      loadData(today);
     }, [loadData])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadData();
+    await loadData(selectedDate);
     setRefreshing(false);
-  }, [loadData]);
+  }, [loadData, selectedDate]);
 
   const handleStockageChange = useCallback((s: StockageType) => {
     setStockage(s);
@@ -137,7 +141,7 @@ export default function CourantScreen() {
         txDescription.trim() || undefined
       );
       setModalVisible(false);
-      await loadData();
+      await loadData(selectedDate);
 
       if (txType === 'sortie') {
         const alert = await checkBudgetAlert(userId, txCategorie, stockage);
@@ -203,7 +207,7 @@ export default function CourantScreen() {
         await addTransaction('sortie', transferSource, frais, 'Autre', now, `Frais transfert vers ${destLabel}`);
       }
       setTransferModalVisible(false);
-      loadData();
+      loadData(selectedDate);
     } catch (err) {
       Alert.alert('Erreur', 'Échec du transfert');
     } finally {
@@ -220,7 +224,7 @@ export default function CourantScreen() {
         onPress: async () => {
           try {
             await deleteTransaction(id);
-            loadData();
+            loadData(selectedDate);
           } catch (err) {
             Alert.alert('Erreur', 'Impossible de supprimer');
           }
@@ -229,25 +233,36 @@ export default function CourantScreen() {
     ]);
   };
 
-  const handleMonthPrev = () => {
-    if (month === 1) {
-      setMonth(12);
-      setYear(year - 1);
-    } else {
-      setMonth(month - 1);
-    }
+  const isSelectedDateToday =
+    selectedDate.getDate() === now.getDate() &&
+    selectedDate.getMonth() === now.getMonth() &&
+    selectedDate.getFullYear() === now.getFullYear();
+
+  const goPrevDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d);
   };
 
-  const handleMonthNext = () => {
-    if (month === 12) {
-      setMonth(1);
-      setYear(year + 1);
-    } else {
-      setMonth(month + 1);
-    }
+  const goNextDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    if (d > now) return;
+    setSelectedDate(d);
   };
 
-  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+  const dayTransactions = useMemo(
+    () =>
+      transactions.filter((tx) => {
+        const txDate = new Date(tx.date);
+        return (
+          txDate.getDate() === selectedDate.getDate() &&
+          txDate.getMonth() === selectedDate.getMonth() &&
+          txDate.getFullYear() === selectedDate.getFullYear()
+        );
+      }),
+    [transactions, selectedDate]
+  );
 
   const renderHeader = () => (
     <View>
@@ -265,12 +280,41 @@ export default function CourantScreen() {
         </View>
       </View>
 
-      <MonthSelector
-        month={month}
-        year={year}
-        onPrev={handleMonthPrev}
-        onNext={handleMonthNext}
-      />
+      <View style={styles.dayRow}>
+        <TouchableOpacity onPress={goPrevDay} style={styles.dayBtn}>
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowDayPicker(true)} style={styles.dayLabelBtn}>
+          <Text style={styles.dayLabel}>
+            {selectedDate.toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={goNextDay}
+          style={[styles.dayBtn, isSelectedDateToday && styles.dayBtnDisabled]}
+          disabled={isSelectedDateToday}
+        >
+          <Ionicons name="chevron-forward" size={22} color={isSelectedDateToday ? colors.textMuted : colors.text} />
+        </TouchableOpacity>
+        {showDayPicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="default"
+            maximumDate={now}
+            onChange={(_, d) => {
+              setShowDayPicker(false);
+              if (d && d <= now) {
+                setSelectedDate(d);
+              }
+            }}
+          />
+        )}
+      </View>
 
       <View style={styles.actionRow}>
         <TouchableOpacity
@@ -313,14 +357,14 @@ export default function CourantScreen() {
       </View>
 
       <FlashList
-        data={transactions}
+        data={dayTransactions}
         renderItem={({ item, index }) => (
-          <TransactionItem item={item} index={index} onDelete={handleDelete} />
+          <TransactionItem item={item} index={index} onPress={(item) => setDetailItem(item as CourantTransaction)} onDelete={handleDelete} />
         )}
         keyExtractor={(item) => item.id.toString()}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
-          <EmptyState emoji="💳" message="Aucune transaction ce mois-ci" />
+          <EmptyState emoji="💳" message="Aucune transaction ce jour" />
         }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -328,10 +372,10 @@ export default function CourantScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
       />
 
-      <Modal visible={modalVisible} transparent animationType="fade">
+      <Modal visible={modalVisible} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <View style={styles.modalOverlay}>
           <ScrollView
@@ -339,7 +383,7 @@ export default function CourantScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          <View style={[styles.modal, { paddingBottom: insets.bottom + 32 }]}>
+          <View style={styles.modal}>
             <Text style={styles.modalTitle}>
               {txType === 'entree' ? 'Nouvelle entrée' : 'Nouvelle sortie'}
             </Text>
@@ -451,10 +495,10 @@ export default function CourantScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={transferModalVisible} transparent animationType="fade">
+      <Modal visible={transferModalVisible} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <View style={styles.modalOverlay}>
           <ScrollView
@@ -462,7 +506,7 @@ export default function CourantScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          <View style={[styles.modal, { paddingBottom: insets.bottom + 32 }]}>
+          <View style={styles.modal}>
             <Text style={styles.modalTitle}>Transfert entre comptes</Text>
 
             <View style={styles.modalField}>
@@ -559,6 +603,60 @@ export default function CourantScreen() {
         </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <Modal visible={detailItem !== null} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={() => setDetailItem(null)}>
+        <View style={styles.detailOverlay}>
+          <View style={styles.detailModal}>
+            {detailItem && (
+              <>
+                <View style={styles.detailHeader}>
+                  <View style={[styles.detailBadge, { backgroundColor: detailItem.type === 'entree' ? colors.entree + '20' : colors.sortie + '20' }]}>
+                    <Ionicons name={detailItem.type === 'entree' ? 'arrow-down' : 'arrow-up'} size={20} color={detailItem.type === 'entree' ? colors.entree : colors.sortie} />
+                  </View>
+                  <Text style={styles.detailType}>{detailItem.type === 'entree' ? 'Entrée' : 'Sortie'}</Text>
+                  <TouchableOpacity onPress={() => setDetailItem(null)} style={styles.detailClose}>
+                    <Ionicons name="close" size={24} color={colors.textSec} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.detailMontant}>{formatAr(detailItem.montant)}</Text>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Catégorie</Text>
+                  <Text style={styles.detailValue}>{detailItem.categorie}</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Compte</Text>
+                  <Text style={styles.detailValue}>{stockageLabels[detailItem.stockage]}</Text>
+                </View>
+
+                {detailItem.description ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Description</Text>
+                    <Text style={styles.detailValue}>{detailItem.description}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Date</Text>
+                  <Text style={styles.detailValue}>{formatDate(detailItem.date)} à {formatTime(detailItem.date)}</Text>
+                </View>
+
+                {detailItem.source === 'facture' && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Source</Text>
+                    <View style={styles.detailSourceBadge}>
+                      <Ionicons name="document-text" size={14} color={colors.warning} />
+                      <Text style={[styles.detailValue, { color: colors.warning }]}>Facture</Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -598,18 +696,56 @@ function createStyles(c: Record<string, any>) {
       paddingHorizontal: 16,
       marginVertical: 8,
     },
+    dayRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+      gap: 12,
+    },
+    dayBtn: {
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: c.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    dayBtnDisabled: {
+      opacity: 0.4,
+    },
+    dayLabelBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: c.surface,
+    },
+    dayLabel: {
+      color: c.text,
+      fontSize: 14,
+      fontWeight: '600',
+      textTransform: 'capitalize',
+    },
     actionBtn: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      paddingVertical: 12,
-      borderRadius: 10,
+      paddingVertical: 13,
+      borderRadius: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 2,
     },
     actionText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '700',
+      fontFamily: 'IBMPlexSans_700Bold',
     },
     modalOverlay: {
       flex: 1,
@@ -704,6 +840,72 @@ function createStyles(c: Record<string, any>) {
     stockageOptionTextActive: {
       color: c.primary,
       fontWeight: '700',
+    },
+    detailOverlay: {
+      flex: 1,
+      backgroundColor: c.overlay,
+      justifyContent: 'flex-end',
+    },
+    detailModal: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 24,
+      gap: 16,
+    },
+    detailHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    detailBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    detailType: {
+      color: c.text,
+      fontSize: 18,
+      fontWeight: '700',
+      flex: 1,
+    },
+    detailClose: {
+      padding: 4,
+    },
+    detailMontant: {
+      color: c.text,
+      fontSize: 32,
+      fontWeight: '800',
+      textAlign: 'center',
+      paddingVertical: 8,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 16,
+    },
+    detailLabel: {
+      color: c.textSec,
+      fontSize: 14,
+      fontWeight: '500',
+      flex: 1,
+    },
+    detailValue: {
+      color: c.text,
+      fontSize: 14,
+      fontWeight: '600',
+      flex: 2,
+      textAlign: 'right',
+    },
+    detailSourceBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flex: 2,
+      justifyContent: 'flex-end',
     },
   });
 }

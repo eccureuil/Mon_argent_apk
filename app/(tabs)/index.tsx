@@ -11,11 +11,12 @@ import {
   Alert,
   ActivityIndicator,
   AppState,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart } from 'react-native-chart-kit';
@@ -30,7 +31,7 @@ import SoldeCard from '../../components/SoldeCard';
 import MonthSelector from '../../components/MonthSelector';
 import EmptyState from '../../components/EmptyState';
 import TransactionItem from '../../components/TransactionItem';
-import { formatAr, formatMonthYear } from '../../utils/format';
+import { formatAr, formatMonthYear, formatDate, formatTime } from '../../utils/format';
 import { stockages } from '../../constants/categories';
 import { requestPermissions, scheduleDailySummary, checkOverdueBills } from '../../services/notifications';
 import type { StockageType, CourantTransaction, EpargneTransaction, Facture } from '../../types';
@@ -38,9 +39,10 @@ import type { StockageType, CourantTransaction, EpargneTransaction, Facture } fr
 const screenWidth = Dimensions.get('window').width;
 
 export default function DashboardScreen() {
-  const { user, logout } = useSession();
-  const { colors, theme, toggleTheme } = useTheme();
+  const { user } = useSession();
+  const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const router = useRouter();
   const userId = user!.id;
   const insets = useSafeAreaInsets();
   const courant = useCourant(userId);
@@ -64,6 +66,7 @@ export default function DashboardScreen() {
   const [transferMontant, setTransferMontant] = useState('');
   const [transferStockage, setTransferStockage] = useState<StockageType>('banque');
   const [transferring, setTransferring] = useState(false);
+  const [detailItem, setDetailItem] = useState<CourantTransaction | EpargneTransaction | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -155,13 +158,6 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert('Déconnexion', 'Voulez-vous vraiment vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Se déconnecter', style: 'destructive', onPress: logout },
-    ]);
-  };
-
   const weekData = {
     labels: ['S1', 'S2', 'S3', 'S4', 'S5'],
     datasets: [
@@ -200,22 +196,16 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <View>
-          <Text style={styles.greeting}>Bonjour, {user?.username}</Text>
-          <Text style={styles.subtitle}>{formatMonthYear(month, year)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Image source={require('../../assets/mon_argent_logo.png')} style={styles.logo} />
+          <View>
+            <Text style={styles.greeting}>Bonjour, {user?.username}</Text>
+            <Text style={styles.subtitle}>{formatMonthYear(month, year)}</Text>
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity onPress={toggleTheme} style={{ padding: 8 }}>
-            <Ionicons
-              name={theme === 'dark' ? 'sunny' : 'moon'}
-              size={22}
-              color={colors.textSec}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={22} color={colors.textSec} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => router.push('/parametres')} style={{ padding: 8 }}>
+          <Ionicons name="settings-outline" size={22} color={colors.textSec} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -351,7 +341,7 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Dernières transactions</Text>
           {recentTx.length > 0 ? (
             recentTx.map((tx, i) => (
-              <TransactionItem key={tx.id} item={tx} index={i} />
+              <TransactionItem key={tx.id} item={tx} index={i} onPress={setDetailItem} />
             ))
           ) : (
             <EmptyState emoji="📭" message="Aucune transaction récente" />
@@ -359,10 +349,10 @@ export default function DashboardScreen() {
         </View>
       </ScrollView>
 
-      <Modal visible={transferModal} transparent animationType="fade">
+      <Modal visible={transferModal} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <View style={styles.modalOverlay}>
           <ScrollView
@@ -371,7 +361,7 @@ export default function DashboardScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
           >
-          <View style={[styles.modal, { paddingBottom: insets.bottom + 32 }]}>
+          <View style={styles.modal}>
             <Text style={styles.modalTitle}>Transférer vers Épargne</Text>
             <TextInput
               style={styles.modalInput}
@@ -428,6 +418,58 @@ export default function DashboardScreen() {
         </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <Modal visible={detailItem !== null} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={() => setDetailItem(null)}>
+        <View style={styles.detailOverlay}>
+          <View style={styles.detailModal}>
+            {detailItem && (
+              <>
+                <View style={styles.detailHeader}>
+                  <View style={[styles.detailBadge, { backgroundColor: detailItem.type === 'entree' ? (('stockage' in detailItem) ? colors.entree : colors.epargne) + '20' : ('stockage' in detailItem ? colors.sortie : colors.warning) + '20' }]}>
+                    <Ionicons name={detailItem.type === 'entree' ? 'arrow-down' : 'arrow-up'} size={20} color={detailItem.type === 'entree' ? (('stockage' in detailItem) ? colors.entree : colors.epargne) : ('stockage' in detailItem ? colors.sortie : colors.warning)} />
+                  </View>
+                  <Text style={styles.detailType}>{detailItem.type === 'entree' ? 'Entrée' : 'Sortie'}</Text>
+                  <TouchableOpacity onPress={() => setDetailItem(null)} style={styles.detailClose}>
+                    <Ionicons name="close" size={24} color={colors.textSec} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.detailMontant}>{formatAr(detailItem.montant)}</Text>
+
+                {'stockage' in detailItem ? (
+                  <>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Catégorie</Text>
+                      <Text style={styles.detailValue}>{detailItem.categorie}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Compte</Text>
+                      <Text style={styles.detailValue}>{stockages.find((s) => s.value === detailItem.stockage)?.label ?? detailItem.stockage}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Type</Text>
+                    <Text style={styles.detailValue}>Épargne</Text>
+                  </View>
+                )}
+
+                {detailItem.description ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Description</Text>
+                    <Text style={styles.detailValue}>{detailItem.description}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Date</Text>
+                  <Text style={styles.detailValue}>{formatDate(detailItem.date)} à {formatTime(detailItem.date)}</Text>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -447,22 +489,24 @@ function createStyles(c: ColorPalette) {
       alignItems: 'center',
       paddingHorizontal: 20,
       paddingTop: 16,
-      paddingBottom: 8,
+      paddingBottom: 12,
     },
     greeting: {
       color: c.text,
       fontSize: 22,
       fontWeight: '700',
+      fontFamily: 'IBMPlexSans_700Bold',
     },
     subtitle: {
       color: c.textSec,
       fontSize: 13,
+      fontFamily: 'IBMPlexSans_500Medium',
       textTransform: 'capitalize',
       marginTop: 2,
     },
-    logoutBtn: {
-      padding: 8,
-      backgroundColor: c.surface,
+    logo: {
+      width: 36,
+      height: 36,
       borderRadius: 8,
     },
     cardsRow: {
@@ -495,19 +539,26 @@ function createStyles(c: ColorPalette) {
     summaryCard: {
       flex: 1,
       backgroundColor: c.card,
-      borderRadius: 10,
+      borderRadius: 12,
       padding: 12,
       alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
+      elevation: 2,
     },
     summaryLabel: {
       color: c.textSec,
       fontSize: 11,
       fontWeight: '500',
+      fontFamily: 'IBMPlexSans_500Medium',
       marginBottom: 4,
     },
     summaryValue: {
       fontSize: 14,
       fontWeight: '700',
+      fontFamily: 'IBMPlexSans_700Bold',
     },
     section: {
       marginTop: 20,
@@ -517,11 +568,12 @@ function createStyles(c: ColorPalette) {
       color: c.text,
       fontSize: 16,
       fontWeight: '700',
+      fontFamily: 'IBMPlexSans_700Bold',
       marginBottom: 12,
     },
     chart: {
       borderRadius: 10,
-      marginLeft: -8,
+      alignSelf: 'center',
     },
     transferButton: {
       flexDirection: 'row',
@@ -649,6 +701,65 @@ function createStyles(c: ColorPalette) {
       paddingVertical: 12,
       borderRadius: 8,
       alignItems: 'center',
+    },
+    detailOverlay: {
+      flex: 1,
+      backgroundColor: c.overlay,
+      justifyContent: 'flex-end',
+    },
+    detailModal: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 24,
+      gap: 16,
+    },
+    detailHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    detailBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    detailType: {
+      color: c.text,
+      fontSize: 18,
+      fontWeight: '700',
+      flex: 1,
+    },
+    detailClose: {
+      padding: 4,
+    },
+    detailMontant: {
+      color: c.text,
+      fontSize: 32,
+      fontWeight: '800',
+      textAlign: 'center',
+      paddingVertical: 8,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 16,
+    },
+    detailLabel: {
+      color: c.textSec,
+      fontSize: 14,
+      fontWeight: '500',
+      flex: 1,
+    },
+    detailValue: {
+      color: c.text,
+      fontSize: 14,
+      fontWeight: '600',
+      flex: 2,
+      textAlign: 'right',
     },
   });
 }

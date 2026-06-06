@@ -1,8 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { AppState } from 'react-native';
+import { AppState, Text } from 'react-native';
 import * as Updates from 'expo-updates';
+import {
+  useFonts,
+  IBMPlexSans_400Regular,
+  IBMPlexSans_500Medium,
+  IBMPlexSans_600SemiBold,
+  IBMPlexSans_700Bold,
+} from '@expo-google-fonts/ibm-plex-sans';
 import { SessionProvider, useSession } from '../hooks/useSession';
 import { ThemeProvider, useTheme } from '../hooks/useTheme';
 import {
@@ -65,6 +72,21 @@ function ThemedStatusBar() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    IBMPlexSans_400Regular,
+    IBMPlexSans_500Medium,
+    IBMPlexSans_600SemiBold,
+    IBMPlexSans_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      (Text as any).defaultProps = { style: { fontFamily: 'IBMPlexSans_400Regular' } };
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
+
   return (
     <SessionProvider>
       <ThemeProvider>

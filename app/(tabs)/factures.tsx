@@ -95,6 +95,11 @@ export default function FacturesScreen() {
     return true;
   });
 
+  const totalAPayer = factures
+    .filter((f) => !f.payee)
+    .reduce((sum, f) => sum + f.montant, 0);
+  const nbAPayer = factures.filter((f) => !f.payee).length;
+
   const openCreate = () => {
     setEditingId(null);
     setFTitre('');
@@ -265,6 +270,18 @@ export default function FacturesScreen() {
     <View style={styles.container}>
       <View style={{ paddingTop: insets.top + 8 }}>
         {renderFilterTabs()}
+        {filter !== 'payees' && (
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryLeft}>
+              <Ionicons name="document-text" size={24} color={colors.primary} />
+              <View>
+                <Text style={styles.summaryLabel}>Total à payer</Text>
+                <Text style={styles.summaryCount}>{nbAPayer} facture{nbAPayer > 1 ? 's' : ''}</Text>
+              </View>
+            </View>
+            <Text style={styles.summaryAmount}>{formatAr(totalAPayer)}</Text>
+          </View>
+        )}
       </View>
       <FlashList
         data={filteredFactures}
@@ -312,7 +329,7 @@ export default function FacturesScreen() {
       <Modal visible={formModal} transparent animationType="fade">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <View style={styles.modalOverlay}>
           <ScrollView
@@ -320,7 +337,7 @@ export default function FacturesScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          <View style={[styles.modal, { paddingBottom: insets.bottom + 32 }]}>
+          <View style={styles.modal}>
             <Text style={styles.modalTitle}>
               {editingId ? 'Modifier la facture' : 'Nouvelle facture'}
             </Text>
@@ -443,7 +460,7 @@ export default function FacturesScreen() {
       <Modal visible={payModal} transparent animationType="fade">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <View style={styles.modalOverlay}>
           <ScrollView
@@ -451,7 +468,7 @@ export default function FacturesScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          <View style={[styles.modal, { paddingBottom: insets.bottom + 32 }]}>
+          <View style={styles.modal}>
             <Text style={styles.modalTitle}>Payer la facture</Text>
             <Text style={styles.payMessage}>
               Payer {selectedFacture?.titre} pour {formatAr(selectedFacture?.montant ?? 0)} Ar ? Choisir le compte de débit :
@@ -505,7 +522,7 @@ export default function FacturesScreen() {
       <Modal visible={detailModal} transparent animationType="fade">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <View style={styles.modalOverlay}>
           <ScrollView
@@ -513,7 +530,7 @@ export default function FacturesScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          <View style={[styles.modal, { paddingBottom: insets.bottom + 32 }]}>
+          <View style={styles.modal}>
             {selectedFacture && (
               <>
                 <View style={styles.detailHeader}>
@@ -621,6 +638,35 @@ function createStyles(c: Record<string, any>) {
     },
     filterTextActive: {
       color: c.primary,
+      fontWeight: '700',
+    },
+    summaryCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: c.surface,
+      marginHorizontal: 16,
+      marginBottom: 4,
+      borderRadius: 12,
+      padding: 16,
+    },
+    summaryLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    summaryLabel: {
+      color: c.textSec,
+      fontSize: 13,
+    },
+    summaryCount: {
+      color: c.textMuted,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    summaryAmount: {
+      color: c.danger,
+      fontSize: 20,
       fontWeight: '700',
     },
     fab: {

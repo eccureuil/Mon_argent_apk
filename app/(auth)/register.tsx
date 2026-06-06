@@ -12,9 +12,11 @@ import {
   TouchableWithoutFeedback,
   Alert,
   ActivityIndicator,
+  Image,
   useWindowDimensions,
 } from 'react-native';
 import { Link, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
@@ -27,6 +29,8 @@ export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
@@ -83,9 +87,9 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.logo}>💰</Text>
+          <Image source={require('../../assets/mon_argent_logo.png')} style={styles.logo} />
           <Text style={styles.title}>Créer un compte</Text>
-          <Text style={styles.subtitle}>Rejoignez Mon_argent</Text>
+          <Text style={styles.subtitle}>Rejoignez Mon Argent</Text>
 
           <View style={styles.form}>
             <View style={styles.inputGroup}>
@@ -106,33 +110,43 @@ export default function RegisterScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Mot de passe</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Minimum 4 caractères"
-                placeholderTextColor={colors.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                returnKeyType="next"
-                onSubmitEditing={() => confirmRef.current?.focus()}
-                blurOnSubmit={false}
-                ref={passwordRef}
-              />
+              <View style={[styles.input, styles.passwordContainer]}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Minimum 4 caractères"
+                  placeholderTextColor={colors.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType="next"
+                  onSubmitEditing={() => confirmRef.current?.focus()}
+                  blurOnSubmit={false}
+                  ref={passwordRef}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={colors.textSec} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Confirmer le mot de passe</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Retaper le mot de passe"
-                placeholderTextColor={colors.textMuted}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                returnKeyType="done"
-                onSubmitEditing={handleRegister}
-                ref={confirmRef}
-              />
+              <View style={[styles.input, styles.passwordContainer]}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Retaper le mot de passe"
+                  placeholderTextColor={colors.textMuted}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirm}
+                  returnKeyType="done"
+                  onSubmitEditing={handleRegister}
+                  ref={confirmRef}
+                />
+                <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn}>
+                  <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={colors.textSec} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -173,9 +187,11 @@ function createStyles(c: Record<string, any>) {
       paddingHorizontal: 24,
     },
     logo: {
-      fontSize: 64,
-      textAlign: 'center',
+      width: 64,
+      height: 64,
+      alignSelf: 'center',
       marginBottom: 8,
+      borderRadius: 12,
     },
     title: {
       fontSize: 28,
@@ -210,6 +226,20 @@ function createStyles(c: Record<string, any>) {
       padding: 14,
       color: c.text,
       fontSize: 16,
+    },
+    passwordContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingRight: 4,
+    },
+    passwordInput: {
+      flex: 1,
+      color: c.text,
+      fontSize: 16,
+      padding: 0,
+    },
+    eyeBtn: {
+      paddingHorizontal: 8,
     },
     button: {
       backgroundColor: c.primary,

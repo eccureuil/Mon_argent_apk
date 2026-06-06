@@ -22,11 +22,13 @@ import { FlashList } from '@shopify/flash-list';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
 import { useEpargne } from '../../hooks/useEpargne';
+import { useCourant } from '../../hooks/useCourant';
 import MonthSelector from '../../components/MonthSelector';
 import TransactionItem from '../../components/TransactionItem';
 import EmptyState from '../../components/EmptyState';
-import { formatAr, formatMonthYear } from '../../utils/format';
-import type { EpargneTransaction, TransactionType } from '../../types';
+import { formatAr, formatMonthYear, formatDate, formatTime } from '../../utils/format';
+import { stockageLabels, stockages } from '../../constants/categories';
+import type { EpargneTransaction, TransactionType, StockageType } from '../../types';
 
 export default function EpargneScreen() {
   const { colors } = useTheme();
@@ -36,6 +38,7 @@ export default function EpargneScreen() {
   const insets = useSafeAreaInsets();
   const { getSolde, getTransactions, addTransaction, deleteTransaction } =
     useEpargne(userId);
+  const { addTransaction: addCourantTransaction } = useCourant(userId);
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -52,6 +55,9 @@ export default function EpargneScreen() {
   const [txDate, setTxDate] = useState(now);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [retraitDestination, setRetraitDestination] = useState<'retrait' | 'courant'>('retrait');
+  const [destStockage, setDestStockage] = useState<StockageType>('espece');
+  const [detailItem, setDetailItem] = useState<EpargneTransaction | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -85,6 +91,8 @@ export default function EpargneScreen() {
     setTxMontant('');
     setTxDescription('');
     setTxDate(new Date());
+    setRetraitDestination('retrait');
+    setDestStockage('espece');
     setModalVisible(true);
   }, []);
 
@@ -97,12 +105,18 @@ export default function EpargneScreen() {
 
     setSaving(true);
     try {
-      await addTransaction(
-        txType,
-        montant,
-        txDate.toISOString(),
-        txDescription.trim() || undefined
-      );
+      if (txType === 'sortie' && retraitDestination === 'courant') {
+        await addTransaction('sortie', montant, txDate.toISOString(), txDescription.trim() || undefined);
+        const destLabel = stockageLabels[destStockage];
+        await addCourantTransaction('entree', destStockage, montant, 'Autre', txDate.toISOString(), `Transfert depuis Épargne (${destLabel})`);
+      } else {
+        await addTransaction(
+          txType,
+          montant,
+          txDate.toISOString(),
+          txDescription.trim() || undefined
+        );
+      }
       setModalVisible(false);
       loadData();
     } catch (err) {
@@ -205,7 +219,7 @@ export default function EpargneScreen() {
       <FlashList
         data={transactions}
         renderItem={({ item, index }) => (
-          <TransactionItem item={item} index={index} onDelete={handleDelete} />
+          <TransactionItem item={item} index={index} onPress={(item) => setDetailItem(item as EpargneTransaction)} onDelete={handleDelete} />
         )}
         keyExtractor={(item) => item.id.toString()}
         ListEmptyComponent={
@@ -217,10 +231,10 @@ export default function EpargneScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
       />
 
-      <Modal visible={modalVisible} transparent animationType="fade">
+      <Modal visible={modalVisible} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <View style={styles.modalOverlay}>
           <ScrollView
@@ -228,10 +242,49 @@ export default function EpargneScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          <View style={[styles.modal, { paddingBottom: insets.bottom + 32 }]}>
+          <View style={styles.modal}>
             <Text style={styles.modalTitle}>
               {txType === 'entree' ? 'Ajouter à l\'Épargne' : 'Retrait Épargne'}
             </Text>
+
+            {txType === 'sortie' && (
+              <>
+                <View style={styles.modalField}>
+                  <Text style={styles.fieldLabel}>Type de retrait</Text>
+                  <View style={styles.destinationPicker}>
+                    <TouchableOpacity
+                      style={[styles.destOption, retraitDestination === 'retrait' && styles.destOptionActive]}
+                      onPress={() => setRetraitDestination('retrait')}
+                    >
+                      <Text style={[styles.destOptionText, retraitDestination === 'retrait' && styles.destOptionTextActive]}>Retrait simple</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.destOption, retraitDestination === 'courant' && styles.destOptionActive]}
+                      onPress={() => setRetraitDestination('courant')}
+                    >
+                      <Text style={[styles.destOptionText, retraitDestination === 'courant' && styles.destOptionTextActive]}>Vers Compte Courant</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {retraitDestination === 'courant' && (
+                  <View style={styles.modalField}>
+                    <Text style={styles.fieldLabel}>Destination</Text>
+                    <View style={styles.stockagePicker}>
+                      {stockages.map((s) => (
+                        <TouchableOpacity
+                          key={s.value}
+                          style={[styles.stockageOption, destStockage === s.value && styles.stockageOptionActive]}
+                          onPress={() => setDestStockage(s.value as StockageType)}
+                        >
+                          <Text style={[styles.stockageOptionText, destStockage === s.value && styles.stockageOptionTextActive]}>{s.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
 
             <View style={styles.modalField}>
               <Text style={styles.fieldLabel}>Montant</Text>
@@ -305,7 +358,7 @@ export default function EpargneScreen() {
                   <ActivityIndicator color={colors.text} />
                 ) : (
                   <Text style={{ color: colors.text, fontWeight: '700' }}>
-                    {txType === 'entree' ? 'Ajouter' : 'Retirer'}
+                    {txType === 'entree' ? 'Ajouter' : retraitDestination === 'courant' ? 'Transférer' : 'Retirer'}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -314,6 +367,40 @@ export default function EpargneScreen() {
           </ScrollView>
         </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={detailItem !== null} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen" onRequestClose={() => setDetailItem(null)}>
+        <View style={styles.detailOverlay}>
+          <View style={styles.detailModal}>
+            {detailItem && (
+              <>
+                <View style={styles.detailHeader}>
+                  <View style={[styles.detailBadge, { backgroundColor: detailItem.type === 'entree' ? colors.epargne + '20' : colors.warning + '20' }]}>
+                    <Ionicons name={detailItem.type === 'entree' ? 'arrow-down' : 'arrow-up'} size={20} color={detailItem.type === 'entree' ? colors.epargne : colors.warning} />
+                  </View>
+                  <Text style={styles.detailType}>{detailItem.type === 'entree' ? 'Ajout Épargne' : 'Retrait Épargne'}</Text>
+                  <TouchableOpacity onPress={() => setDetailItem(null)} style={styles.detailClose}>
+                    <Ionicons name="close" size={24} color={colors.textSec} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.detailMontant}>{formatAr(detailItem.montant)}</Text>
+
+                {detailItem.description ? (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Description</Text>
+                    <Text style={styles.detailValue}>{detailItem.description}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Date</Text>
+                  <Text style={styles.detailValue}>{formatDate(detailItem.date)} à {formatTime(detailItem.date)}</Text>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -361,12 +448,18 @@ function createStyles(c: Record<string, any>) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      paddingVertical: 12,
-      borderRadius: 10,
+      paddingVertical: 13,
+      borderRadius: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 2,
     },
     actionText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '700',
+      fontFamily: 'IBMPlexSans_700Bold',
     },
     modalOverlay: {
       flex: 1,
@@ -427,6 +520,115 @@ function createStyles(c: Record<string, any>) {
       paddingVertical: 14,
       borderRadius: 10,
       alignItems: 'center',
+    },
+    destinationPicker: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    destOption: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      backgroundColor: c.card,
+      alignItems: 'center',
+    },
+    destOptionActive: {
+      backgroundColor: c.warning + '30',
+      borderWidth: 1,
+      borderColor: c.warning,
+    },
+    destOptionText: {
+      color: c.textSec,
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    destOptionTextActive: {
+      color: c.warning,
+      fontWeight: '700',
+    },
+    stockagePicker: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    stockageOption: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      backgroundColor: c.card,
+      alignItems: 'center',
+    },
+    stockageOptionActive: {
+      backgroundColor: c.primary + '30',
+      borderWidth: 1,
+      borderColor: c.primary,
+    },
+    stockageOptionText: {
+      color: c.textSec,
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    stockageOptionTextActive: {
+      color: c.primary,
+      fontWeight: '700',
+    },
+    detailOverlay: {
+      flex: 1,
+      backgroundColor: c.overlay,
+      justifyContent: 'flex-end',
+    },
+    detailModal: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 24,
+      gap: 16,
+    },
+    detailHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    detailBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    detailType: {
+      color: c.text,
+      fontSize: 18,
+      fontWeight: '700',
+      flex: 1,
+    },
+    detailClose: {
+      padding: 4,
+    },
+    detailMontant: {
+      color: c.text,
+      fontSize: 32,
+      fontWeight: '800',
+      textAlign: 'center',
+      paddingVertical: 8,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 16,
+    },
+    detailLabel: {
+      color: c.textSec,
+      fontSize: 14,
+      fontWeight: '500',
+      flex: 1,
+    },
+    detailValue: {
+      color: c.text,
+      fontSize: 14,
+      fontWeight: '600',
+      flex: 2,
+      textAlign: 'right',
     },
   });
 }

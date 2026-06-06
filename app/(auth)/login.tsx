@@ -12,9 +12,11 @@ import {
   TouchableWithoutFeedback,
   Alert,
   ActivityIndicator,
+  Image,
   useWindowDimensions,
 } from 'react-native';
 import { Link, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +29,7 @@ export default function LoginScreen() {
   const { height } = useWindowDimensions();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const passwordRef = useRef<TextInput>(null);
 
@@ -73,8 +76,8 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.logo}>💰</Text>
-          <Text style={styles.title}>Mon_argent</Text>
+          <Image source={require('../../assets/mon_argent_logo.png')} style={styles.logo} />
+          <Text style={styles.title}>Mon Argent</Text>
           <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
 
           <View style={styles.form}>
@@ -96,17 +99,22 @@ export default function LoginScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Mot de passe</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Votre mot de passe"
-                placeholderTextColor={colors.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-                ref={passwordRef}
-              />
+              <View style={[styles.input, styles.passwordContainer]}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Votre mot de passe"
+                  placeholderTextColor={colors.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  ref={passwordRef}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={colors.textSec} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -147,9 +155,11 @@ function createStyles(c: Record<string, any>) {
       paddingHorizontal: 24,
     },
     logo: {
-      fontSize: 64,
-      textAlign: 'center',
+      width: 64,
+      height: 64,
+      alignSelf: 'center',
       marginBottom: 8,
+      borderRadius: 12,
     },
     title: {
       fontSize: 32,
@@ -184,6 +194,20 @@ function createStyles(c: Record<string, any>) {
       padding: 14,
       color: c.text,
       fontSize: 16,
+    },
+    passwordContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingRight: 4,
+    },
+    passwordInput: {
+      flex: 1,
+      color: c.text,
+      fontSize: 16,
+      padding: 0,
+    },
+    eyeBtn: {
+      paddingHorizontal: 8,
     },
     button: {
       backgroundColor: c.primary,

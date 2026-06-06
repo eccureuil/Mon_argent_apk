@@ -49,24 +49,28 @@ function createStyles(c: Record<string, any>) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
+      paddingVertical: 10,
       gap: 16,
     },
     button: {
       padding: 8,
-      borderRadius: 8,
+      borderRadius: 10,
       backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
     },
     buttonDisabled: {
-      opacity: 0.4,
+      opacity: 0.3,
     },
     label: {
       color: c.text,
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600',
+      fontFamily: 'IBMPlexSans_600SemiBold',
       textTransform: 'capitalize',
       minWidth: 180,
       textAlign: 'center',
+      letterSpacing: 0.3,
     },
   });
 }

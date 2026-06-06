@@ -1,11 +1,16 @@
 {
   "expo": {
-    "name": "Mon_argent",
+    "name": "Mon Argent",
     "slug": "Mon_argent",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/mon_argent_logo.png",
     "scheme": "monargent",
+    "splash": {
+      "image": "./assets/splashscreen.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
     "userInterfaceStyle": "automatic",
     "updates": {
       "enabled": true,
@@ -23,10 +28,8 @@
       "package": "com.monargent.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/mon_argent_logo.png"
       },
       "predictiveBackGestureEnabled": false
     },

@@ -50,10 +50,13 @@ app/(tabs)/                 → 6 tabs: Accueil, Courant, Épargne, Rapport, Fac
 - **No external state library** — React Context + raw SQL hooks
 - **Data loading** on screen focus via `useFocusEffect`; pull-to-refresh via `RefreshControl`
 - **Modal bottom sheets** for all forms (bottom-up animation)
-- **Component styling:** `createStyles(c: Record<string, string>)` factory called with `useMemo(…)`, receives palette from `useTheme()`
+- **Component styling:** `createStyles(c: Record<string, any>)` factory called with `useMemo(…)`, receives palette from `useTheme()`
 - **Bill payment flow:** `payerFacture()` creates a `courant_transaction` (source=`facture`, links `facture_id`), then marks facture as paid
 - **Wallet transfer:** creates a `sortie` on source + `entree` on destination wallet; Courant→Épargne uses same pair pattern
 - **Categories** defined as const arrays with icon names in `constants/categories.ts`
+- **SecureStore keys:** `session_token` (auth), `theme_preference` (dark/light/system), `setup_done` (post-registration wizard flag)
+- **`expo-sqlite` v16 async API:** `db.runAsync()`, `db.getFirstAsync()`, `db.getAllAsync()` — never use the old synchronous `exec()` or `transaction()` patterns
+- **`resetDatabase()`** in `database/db.ts` drops all 7 tables and re-creates them (dev reset)
 
 ## Setup quirks
 
@@ -62,4 +65,5 @@ app/(tabs)/                 → 6 tabs: Accueil, Courant, Épargne, Rapport, Fac
 - **No tests, no linter, no CI** — type-check via `npx tsc --noEmit` is the only quality gate
 - `expo start` runs in Expo Go (SDK 54 compatible); `expo run:android`/`expo run:ios` produce dev-client builds
 - App entrypoint via `expo-router/entry` in package.json `main`
+- EAS project owner set to `tsitsito` in `app.json` — must be logged into that account (`npx eas login`) for `eas build` / `eas update`
 - Uses `expo-crypto` SHA-256 (not bcrypt/scrypt) for password hashing

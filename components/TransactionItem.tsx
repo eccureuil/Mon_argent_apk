@@ -11,6 +11,7 @@ type Transaction = CourantTransaction | EpargneTransaction;
 interface TransactionItemProps {
   item: Transaction;
   index: number;
+  onPress?: (item: Transaction) => void;
   onDelete?: (id: number) => void;
 }
 
@@ -32,7 +33,7 @@ function isCourant(tx: Transaction): tx is CourantTransaction {
   return 'stockage' in tx && 'source' in tx;
 }
 
-export default function TransactionItem({ item, index, onDelete }: TransactionItemProps) {
+export default function TransactionItem({ item, index, onPress, onDelete }: TransactionItemProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isEntree = item.type === 'entree';
@@ -43,6 +44,7 @@ export default function TransactionItem({ item, index, onDelete }: TransactionIt
   return (
     <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
       <TouchableOpacity
+        onPress={() => onPress?.(item)}
         onLongPress={() => onDelete?.(item.id)}
         activeOpacity={0.7}
         style={styles.container}
@@ -90,24 +92,26 @@ function createStyles(c: Record<string, any>) {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: c.card,
-      borderRadius: 10,
-      padding: 12,
+      borderRadius: 12,
+      padding: 14,
       marginHorizontal: 16,
-      marginVertical: 3,
+      marginVertical: 4,
+      borderWidth: 1,
+      borderColor: c.border,
     },
     iconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
     },
     entreeBg: {
-      backgroundColor: c.primary + '30',
+      backgroundColor: c.entree + '20',
     },
     sortieBg: {
-      backgroundColor: c.danger + '30',
+      backgroundColor: c.sortie + '20',
     },
     content: {
       flex: 1,
@@ -121,11 +125,13 @@ function createStyles(c: Record<string, any>) {
       color: c.text,
       fontSize: 14,
       fontWeight: '600',
+      fontFamily: 'IBMPlexSans_600SemiBold',
       flex: 1,
     },
     montant: {
       fontSize: 15,
       fontWeight: '700',
+      fontFamily: 'IBMPlexSans_700Bold',
     },
     entreeText: {
       color: c.entree,
@@ -137,20 +143,23 @@ function createStyles(c: Record<string, any>) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: 2,
+      marginTop: 3,
     },
     description: {
       color: c.textSec,
       fontSize: 12,
+      fontFamily: 'IBMPlexSans_400Regular',
       flex: 1,
     },
     noDescription: {
       color: c.textMuted,
       fontSize: 12,
+      fontFamily: 'IBMPlexSans_400Regular',
     },
     date: {
       color: c.textMuted,
       fontSize: 11,
+      fontFamily: 'IBMPlexSans_400Regular',
       marginLeft: 8,
     },
     sourceBadge: {
@@ -163,6 +172,7 @@ function createStyles(c: Record<string, any>) {
       color: c.warning,
       fontSize: 11,
       fontWeight: '500',
+      fontFamily: 'IBMPlexSans_500Medium',
     },
   });
 }

@@ -206,39 +206,31 @@ export default function ParametresScreen() {
         </View>
 
         {renderSectionHeader('Apparence')}
+        <Text style={styles.sectionSubtitle}>Thème</Text>
         <View style={styles.section}>
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <Ionicons name="color-palette" size={20} color={colors.primary} style={styles.rowIcon} />
-              <Text style={styles.rowLabel}>Thème</Text>
-            </View>
-            <View style={styles.themeToggle}>
-              {themeOptions.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[
-                    styles.themeOption,
-                    themePreference === opt.value && styles.themeOptionActive,
-                  ]}
-                  onPress={() => setTheme(opt.value)}
-                >
-                  <Ionicons
-                    name={opt.icon as keyof typeof Ionicons.glyphMap}
-                    size={14}
-                    color={themePreference === opt.value ? colors.primary : colors.textSec}
-                  />
-                  <Text
-                    style={[
-                      styles.themeOptionText,
-                      themePreference === opt.value && styles.themeOptionTextActive,
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+          {themeOptions.map((opt) => (
+            <TouchableOpacity
+              key={opt.value}
+              style={styles.row}
+              onPress={() => setTheme(opt.value)}
+              activeOpacity={0.6}
+            >
+              <View style={styles.rowLeft}>
+                <Ionicons
+                  name={opt.icon as keyof typeof Ionicons.glyphMap}
+                  size={20}
+                  color={themePreference === opt.value ? colors.primary : colors.textSec}
+                  style={styles.rowIcon}
+                />
+                <Text style={[styles.rowLabel, themePreference === opt.value && { color: colors.primary }]}>
+                  {opt.label}
+                </Text>
+              </View>
+              {themePreference === opt.value && (
+                <Ionicons name="checkmark" size={20} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
 
         {renderSectionHeader('Compte')}
@@ -347,7 +339,7 @@ export default function ParametresScreen() {
       <Modal visible={modalVisible} transparent animationType="fade">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalOverlay}>
             <ScrollView
@@ -355,7 +347,7 @@ export default function ParametresScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <View style={[styles.modal, { paddingBottom: insets.bottom + 32 }]}>
+              <View style={styles.modal}>
                 <Text style={styles.modalTitle}>
                   {editRule ? 'Modifier la règle' : 'Nouvelle règle budgétaire'}
                 </Text>

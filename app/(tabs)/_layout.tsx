@@ -13,7 +13,6 @@ const tabIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   epargne: 'business',
   rapport: 'bar-chart',
   factures: 'document-text',
-  parametres: 'settings-outline',
 };
 
 export default function TabsLayout() {
@@ -49,19 +48,26 @@ export default function TabsLayout() {
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSec,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: colors.bg,
+          backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          borderTopWidth: 1,
-          paddingTop: 4,
-          height: 60 + insets.bottom,
+          borderTopWidth: 0.5,
+          paddingTop: 6,
+          height: 56 + insets.bottom,
           paddingBottom: insets.bottom,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
+          fontFamily: 'IBMPlexSans_600SemiBold',
           marginBottom: 4,
+          letterSpacing: 0.3,
         },
       })}
     >
@@ -87,7 +93,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="parametres"
-        options={{ tabBarLabel: 'Paramètres' }}
+        options={{ href: null }}
       />
     </Tabs>
   );
