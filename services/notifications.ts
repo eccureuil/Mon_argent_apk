@@ -3,12 +3,18 @@ import { Platform } from 'react-native';
 import { getDb } from '../database/db';
 import { formatAr } from '../utils/format';
 
+let soundEnabled = true;
+
+export function setSoundEnabled(enabled: boolean) {
+  soundEnabled = enabled;
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: true,
+    shouldPlaySound: soundEnabled,
     shouldSetBadge: false,
   }),
 });
@@ -36,7 +42,15 @@ export async function requestPermissions(): Promise<boolean> {
   }
 }
 
-export async function scheduleDailySummary(userId: number): Promise<void> {
+export async function cancelAllScheduled(): Promise<void> {
+  await Notifications.cancelAllScheduledNotificationsAsync();
+}
+
+export async function scheduleDailySummary(
+  userId: number,
+  hour: number,
+  minute: number
+): Promise<void> {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
 
@@ -74,8 +88,8 @@ export async function scheduleDailySummary(userId: number): Promise<void> {
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 19,
-        minute: 0,
+        hour,
+        minute,
       },
     });
   } catch (err) {
@@ -118,6 +132,43 @@ export async function checkOverdueBills(userId: number): Promise<void> {
     }
   } catch (err) {
     console.error('checkOverdueBills error:', err);
+  }
+}
+
+export async function checkUpcomingDueBills(
+  userId: number,
+  joursAvant: number
+): Promise<void> {
+  try {
+    const db = await getDb();
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + joursAvant);
+    const targetStr = targetDate.toISOString().slice(0, 10);
+
+    const upcoming = await db.getAllAsync<{
+      id: number;
+      titre: string;
+      montant: number;
+      date_echeance: string;
+    }>(
+      `SELECT id, titre, montant, date_echeance FROM factures
+       WHERE user_id = ? AND payee = 0 AND date_echeance = ? AND notif_sent = 0`,
+      userId,
+      targetStr
+    );
+
+    for (const bill of upcoming) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '📄 Facture à venir',
+          body: `${bill.titre} — ${formatAr(bill.montant)} arrive à échéance dans ${joursAvant} jour${joursAvant > 1 ? 's' : ''}`,
+          data: { factureId: bill.id },
+        },
+        trigger: null,
+      });
+    }
+  } catch (err) {
+    console.error('checkUpcomingDueBills error:', err);
   }
 }
 

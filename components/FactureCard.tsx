@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { formatAr, formatDateTime, formatDate } from '../utils/format';
+import { formatAr, formatDateTime } from '../utils/format';
 import type { Facture } from '../types';
 
 interface FactureCardProps {
   facture: Facture;
   index: number;
+  categoryColor?: string;
   onPress: (facture: Facture) => void;
   onPay: (facture: Facture) => void;
 }
@@ -16,6 +17,7 @@ interface FactureCardProps {
 export default function FactureCard({
   facture,
   index,
+  categoryColor,
   onPress,
   onPay,
 }: FactureCardProps) {
@@ -42,7 +44,7 @@ export default function FactureCard({
   }
 
   const echeanceInfo = getEcheanceInfo(facture.date_echeance);
-  const catColor = (colors.categories as Record<string, string>)[facture.categorie] ?? colors.textSec;
+  const catColor = categoryColor ?? colors.textSec;
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 60).springify()}>
@@ -54,9 +56,14 @@ export default function FactureCard({
         <View style={[styles.catIndicator, { backgroundColor: catColor }]} />
         <View style={styles.content}>
           <View style={styles.topRow}>
-            <Text style={[styles.titre, facture.payee && styles.titrePaid]} numberOfLines={1}>
-              {facture.titre}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+              {facture.recurrence === 'mensuel' && (
+                <Ionicons name="repeat" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+              )}
+              <Text style={[styles.titre, facture.payee && styles.titrePaid]} numberOfLines={1}>
+                {facture.titre}
+              </Text>
+            </View>
             <Text style={[styles.montant, facture.payee && styles.montantPaid]}>
               {formatAr(facture.montant)}
             </Text>
@@ -113,7 +120,7 @@ export default function FactureCard({
                 onPay(facture);
               }}
             >
-              <Ionicons name="card" size={16} color={colors.text} />
+              <Ionicons name="card" size={16} color="#FFFFFF" />
               <Text style={styles.payButtonText}>Marquer comme payée</Text>
             </TouchableOpacity>
           )}
@@ -152,8 +159,7 @@ function createStyles(c: Record<string, any>) {
       color: c.text,
       fontSize: 16,
       fontWeight: '600',
-      flex: 1,
-      marginRight: 8,
+      flexShrink: 1,
     },
     titrePaid: {
       textDecorationLine: 'line-through',
@@ -212,7 +218,7 @@ function createStyles(c: Record<string, any>) {
       marginTop: 10,
     },
     payButtonText: {
-      color: c.text,
+      color: '#FFFFFF',
       fontSize: 13,
       fontWeight: '700',
     },

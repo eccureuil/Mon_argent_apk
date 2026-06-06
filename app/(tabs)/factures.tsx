@@ -24,15 +24,13 @@ import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
 import { useFactures } from '../../hooks/useFactures';
+import { getCategories } from '../../hooks/useCategories';
 import FactureCard from '../../components/FactureCard';
 import EmptyState from '../../components/EmptyState';
-import {
-  scheduleBillDueNotification,
-  requestPermissions,
-} from '../../services/notifications';
-import { factureCategories, stockages } from '../../constants/categories';
+import { scheduleBillDueNotification } from '../../services/notifications';
+import { stockages } from '../../constants/categories';
 import { formatAr } from '../../utils/format';
-import type { Facture, StockageType } from '../../types';
+import type { Facture, StockageType, UserCategory } from '../../types';
 
 type FilterTab = 'toutes' | 'a_payer' | 'payees';
 
@@ -42,11 +40,12 @@ export default function FacturesScreen() {
   const { user } = useSession();
   const userId = user!.id;
   const insets = useSafeAreaInsets();
-  const { getFactures, createFacture, updateFacture, deleteFacture, payerFacture } =
+  const { getFactures, createFacture, updateFacture, deleteFacture, payerFacture, autoCreateRecurringBills } =
     useFactures(userId);
   const { getSoldeByStockage: getSoldeCourant } = useCourant(userId);
 
   const [factures, setFactures] = useState<Facture[]>([]);
+  const [categories, setCategories] = useState<UserCategory[]>([]);
   const [filter, setFilter] = useState<FilterTab>('a_payer');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,18 +63,30 @@ export default function FacturesScreen() {
   const [fCategorie, setFCategorie] = useState('');
   const [fDateEcheance, setFDateEcheance] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [fRecurrence, setFRecurrence] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const categoryColorMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of categories) m[c.value] = c.color;
+    return m;
+  }, [categories]);
 
   const loadData = useCallback(async () => {
     try {
-      const data = await getFactures();
+      await autoCreateRecurringBills();
+      const [data, cats] = await Promise.all([
+        getFactures(),
+        getCategories(userId),
+      ]);
       setFactures(data);
+      setCategories(cats);
     } catch (err) {
       console.error('Factures load error:', err);
     } finally {
       setLoading(false);
     }
-  }, [getFactures]);
+  }, [getFactures, autoCreateRecurringBills]);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,6 +118,7 @@ export default function FacturesScreen() {
     setFMontant('');
     setFCategorie('');
     setFDateEcheance(null);
+    setFRecurrence(false);
     setFormModal(true);
   };
 
@@ -121,6 +133,7 @@ export default function FacturesScreen() {
     setFMontant(f.montant.toString());
     setFCategorie(f.categorie);
     setFDateEcheance(f.date_echeance ? new Date(f.date_echeance) : null);
+    setFRecurrence(f.recurrence === 'mensuel');
     setFormModal(true);
   };
 
@@ -148,6 +161,8 @@ export default function FacturesScreen() {
     try {
       const echeanceStr = fDateEcheance?.toISOString();
 
+      const recurrence = fRecurrence ? 'mensuel' : null;
+
       if (editingId) {
         await updateFacture(
           editingId,
@@ -155,7 +170,8 @@ export default function FacturesScreen() {
           montant,
           fCategorie,
           fDescription.trim() || undefined,
-          echeanceStr
+          echeanceStr,
+          recurrence
         );
       } else {
         const newId = await createFacture(
@@ -163,7 +179,8 @@ export default function FacturesScreen() {
           montant,
           fCategorie,
           fDescription.trim() || undefined,
-          echeanceStr
+          echeanceStr,
+          recurrence
         );
         if (echeanceStr) {
           await scheduleBillDueNotification(newId, fTitre.trim(), montant, echeanceStr);
@@ -254,7 +271,7 @@ export default function FacturesScreen() {
 
   const renderFAB = () => (
     <TouchableOpacity style={styles.fab} onPress={openCreate}>
-      <Ionicons name="add" size={28} color={colors.text} />
+      <Ionicons name="add" size={28} color="#FFFFFF" />
     </TouchableOpacity>
   );
 
@@ -268,27 +285,13 @@ export default function FacturesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={{ paddingTop: insets.top + 8 }}>
-        {renderFilterTabs()}
-        {filter !== 'payees' && (
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryLeft}>
-              <Ionicons name="document-text" size={24} color={colors.primary} />
-              <View>
-                <Text style={styles.summaryLabel}>Total à payer</Text>
-                <Text style={styles.summaryCount}>{nbAPayer} facture{nbAPayer > 1 ? 's' : ''}</Text>
-              </View>
-            </View>
-            <Text style={styles.summaryAmount}>{formatAr(totalAPayer)}</Text>
-          </View>
-        )}
-      </View>
       <FlashList
         data={filteredFactures}
         renderItem={({ item, index }) => (
           <FactureCard
             facture={item}
             index={index}
+            categoryColor={categoryColorMap[item.categorie]}
             onPress={(f) => {
               if (!f.payee) {
                 Alert.alert(f.titre, f.description ?? '', [
@@ -304,6 +307,23 @@ export default function FacturesScreen() {
           />
         )}
         keyExtractor={(item) => item.id.toString()}
+        ListHeaderComponent={
+          <View style={{ paddingTop: insets.top + 8 }}>
+            {renderFilterTabs()}
+            {filter !== 'payees' && (
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryLeft}>
+                  <Ionicons name="document-text" size={24} color={colors.primary} />
+                  <View>
+                    <Text style={styles.summaryLabel}>Total à payer</Text>
+                    <Text style={styles.summaryCount}>{nbAPayer} facture{nbAPayer > 1 ? 's' : ''}</Text>
+                  </View>
+                </View>
+                <Text style={styles.summaryAmount}>{formatAr(totalAPayer)}</Text>
+              </View>
+            )}
+          </View>
+        }
         ListEmptyComponent={
           <EmptyState
             emoji="📄"
@@ -326,7 +346,7 @@ export default function FacturesScreen() {
 
       {renderFAB()}
 
-      <Modal visible={formModal} transparent animationType="fade">
+      <Modal visible={formModal} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -375,7 +395,7 @@ export default function FacturesScreen() {
                   mode={Platform.OS === 'android' ? 'dropdown' : undefined}
                 >
                   <Picker.Item label="Choisir..." value="" color={colors.textMuted} style={{ backgroundColor: colors.card }} />
-                  {factureCategories.map((c) => (
+                  {categories.filter(c => c.type === 'facture').map((c) => (
                     <Picker.Item key={c.value} label={c.label} value={c.value} color={colors.text} style={{ backgroundColor: colors.card }} />
                   ))}
                 </Picker>
@@ -430,6 +450,29 @@ export default function FacturesScreen() {
                 />
               )}
             </View>
+            <View style={styles.modalField}>
+              <TouchableOpacity
+                style={styles.recurrenceToggle}
+                onPress={() => setFRecurrence(!fRecurrence)}
+              >
+                <Ionicons
+                  name="repeat"
+                  size={20}
+                  color={fRecurrence ? colors.primary : colors.textSec}
+                />
+                <Text style={[styles.recurrenceLabel, fRecurrence && { color: colors.primary }]}>
+                  Facture récurrente mensuelle
+                </Text>
+                <View
+                  style={[
+                    styles.recurrenceCheckbox,
+                    fRecurrence && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                >
+                  {fRecurrence && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                </View>
+              </TouchableOpacity>
+            </View>
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: colors.card }]}
@@ -443,9 +486,9 @@ export default function FacturesScreen() {
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator color={colors.text} />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={{ color: colors.text, fontWeight: '700' }}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>
                     {editingId ? 'Modifier' : 'Créer'}
                   </Text>
                 )}
@@ -457,7 +500,7 @@ export default function FacturesScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={payModal} transparent animationType="fade">
+      <Modal visible={payModal} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -507,9 +550,9 @@ export default function FacturesScreen() {
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator color={colors.text} />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={{ color: colors.text, fontWeight: '700' }}>Payer</Text>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Payer</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -519,7 +562,7 @@ export default function FacturesScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={detailModal} transparent animationType="fade">
+      <Modal visible={detailModal} transparent animationType="fade" statusBarTranslucent presentationStyle="overFullScreen">
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -557,6 +600,15 @@ export default function FacturesScreen() {
                         { day: 'numeric', month: 'long', year: 'numeric' }
                       )}
                     </Text>
+                  </View>
+                )}
+                {selectedFacture.recurrence === 'mensuel' && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Récurrence</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="repeat" size={14} color={colors.primary} />
+                      <Text style={[styles.detailValue, { color: colors.primary }]}>Mensuelle</Text>
+                    </View>
                   </View>
                 )}
                 <View style={styles.detailRow}>
@@ -746,6 +798,29 @@ function createStyles(c: Record<string, any>) {
       color: c.text,
       fontSize: 15,
       textTransform: 'capitalize',
+    },
+    recurrenceToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: c.card,
+      borderRadius: 8,
+      padding: 14,
+    },
+    recurrenceLabel: {
+      color: c.textSec,
+      fontSize: 14,
+      fontWeight: '500',
+      flex: 1,
+    },
+    recurrenceCheckbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 4,
+      borderWidth: 2,
+      borderColor: c.border,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     modalButtons: {
       flexDirection: 'row',

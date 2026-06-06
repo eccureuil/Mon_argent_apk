@@ -33,11 +33,6 @@ export function formatMonthYear(month: number, year: number): string {
   return dateFnsFormat(d, 'MMMM yyyy', { locale: fr });
 }
 
-export function formatDayName(dateStr: string): string {
-  const d = parseISO(dateStr);
-  return dateFnsFormat(d, 'EEEE', { locale: fr });
-}
-
 export function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   return str.substring(0, maxLen - 3) + '...';

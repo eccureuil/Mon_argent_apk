@@ -4,41 +4,29 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { formatAr, formatDate, formatTime, truncate } from '../utils/format';
-import type { CourantTransaction, EpargneTransaction, TransactionType } from '../types';
+import type { CourantTransaction, EpargneTransaction } from '../types';
 
 type Transaction = CourantTransaction | EpargneTransaction;
 
 interface TransactionItemProps {
   item: Transaction;
   index: number;
+  categoryMap?: Record<string, { icon: string; color: string }>;
   onPress?: (item: Transaction) => void;
   onDelete?: (id: number) => void;
 }
-
-const categorieIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
-  Salaire: 'briefcase',
-  Freelance: 'laptop',
-  Remboursement: 'return-down-back',
-  Vente: 'cart',
-  Alimentation: 'restaurant',
-  Transport: 'car',
-  Logement: 'home',
-  Santé: 'medkit',
-  Loisirs: 'game-controller',
-  Facture: 'document-text',
-  Autre: 'ellipsis-horizontal',
-};
 
 function isCourant(tx: Transaction): tx is CourantTransaction {
   return 'stockage' in tx && 'source' in tx;
 }
 
-export default function TransactionItem({ item, index, onPress, onDelete }: TransactionItemProps) {
+export default function TransactionItem({ item, index, categoryMap, onPress, onDelete }: TransactionItemProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isEntree = item.type === 'entree';
+  const catInfo = isCourant(item) ? categoryMap?.[item.categorie] : undefined;
   const iconName = isCourant(item)
-    ? (categorieIcons[item.categorie] ?? 'ellipsis-horizontal')
+    ? (catInfo?.icon ?? 'ellipsis-horizontal')
     : 'wallet';
 
   return (
@@ -50,7 +38,7 @@ export default function TransactionItem({ item, index, onPress, onDelete }: Tran
         style={styles.container}
       >
         <View style={[styles.iconCircle, isEntree ? styles.entreeBg : styles.sortieBg]}>
-          <Ionicons name={iconName} size={18} color={colors.text} />
+          <Ionicons name={iconName as any} size={18} color={colors.text} />
         </View>
         <View style={styles.content}>
           <View style={styles.topRow}>

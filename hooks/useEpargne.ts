@@ -1,10 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getDb } from '../database/db';
 import type { EpargneTransaction, TransactionType } from '../types';
 
 export function useEpargne(userId: number) {
-  const [loading, setLoading] = useState(false);
-
   const getSolde = useCallback(async (): Promise<number> => {
     const db = await getDb();
     const entrees = await db.getFirstAsync<{ total: number }>(
@@ -80,8 +78,6 @@ export function useEpargne(userId: number) {
   );
 
   return {
-    loading,
-    setLoading,
     getSolde,
     getTransactions,
     getAllTransactions,

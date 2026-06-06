@@ -84,7 +84,25 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       UNIQUE(user_id, categorie),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS user_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      value TEXT NOT NULL,
+      label TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT 'ellipsis-horizontal',
+      color TEXT NOT NULL DEFAULT '#636366',
+      type TEXT NOT NULL DEFAULT 'both' CHECK(type IN ('entree','sortie','both','facture')),
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(user_id, value),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
   `);
+
+  try {
+    await database.execAsync('ALTER TABLE factures ADD COLUMN recurrence TEXT');
+  } catch {
+  }
 }
 
 export async function resetDatabase(): Promise<void> {

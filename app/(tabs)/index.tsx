@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
-  AppState,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -27,14 +26,14 @@ import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
 import { useEpargne } from '../../hooks/useEpargne';
 import { useFactures } from '../../hooks/useFactures';
+import { getCategories } from '../../hooks/useCategories';
 import SoldeCard from '../../components/SoldeCard';
 import MonthSelector from '../../components/MonthSelector';
 import EmptyState from '../../components/EmptyState';
 import TransactionItem from '../../components/TransactionItem';
 import { formatAr, formatMonthYear, formatDate, formatTime } from '../../utils/format';
 import { stockages } from '../../constants/categories';
-import { requestPermissions, scheduleDailySummary, checkOverdueBills } from '../../services/notifications';
-import type { StockageType, CourantTransaction, EpargneTransaction, Facture } from '../../types';
+import type { StockageType, CourantTransaction, EpargneTransaction, Facture, UserCategory } from '../../types';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -61,6 +60,7 @@ export default function DashboardScreen() {
   const [monthlyEntrees, setMonthlyEntrees] = useState(0);
   const [monthlySorties, setMonthlySorties] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<UserCategory[]>([]);
 
   const [transferModal, setTransferModal] = useState(false);
   const [transferMontant, setTransferMontant] = useState('');
@@ -68,18 +68,26 @@ export default function DashboardScreen() {
   const [transferring, setTransferring] = useState(false);
   const [detailItem, setDetailItem] = useState<CourantTransaction | EpargneTransaction | null>(null);
 
+  const categoryMap = useMemo(() => {
+    const m: Record<string, { icon: string; color: string }> = {};
+    for (const c of categories) m[c.value] = { icon: c.icon, color: c.color };
+    return m;
+  }, [categories]);
+
   const loadData = useCallback(async () => {
     try {
-      const [soldeC, soldeE, allTx, bills] = await Promise.all([
+      const [soldeC, soldeE, allTx, bills, cats] = await Promise.all([
         courant.getSoldeByStockage(),
         epargne.getSolde(),
         courant.getAllTransactions(month, year),
         factures.getFactures(),
+        getCategories(userId),
       ]);
 
       setSoldeCourant(soldeC);
       setSoldeEpargne(soldeE);
       setRecentTx(allTx.slice(0, 5));
+      setCategories(cats);
       setUrgentFactures(
         bills.filter((b) => {
           if (b.payee) return false;
@@ -341,7 +349,7 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Dernières transactions</Text>
           {recentTx.length > 0 ? (
             recentTx.map((tx, i) => (
-              <TransactionItem key={tx.id} item={tx} index={i} onPress={setDetailItem} />
+              <TransactionItem key={tx.id} item={tx} index={i} categoryMap={categoryMap} onPress={setDetailItem} />
             ))
           ) : (
             <EmptyState emoji="📭" message="Aucune transaction récente" />

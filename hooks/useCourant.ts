@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getDb } from '../database/db';
 import type {
   CourantTransaction,
@@ -8,8 +8,6 @@ import type {
 } from '../types';
 
 export function useCourant(userId: number) {
-  const [loading, setLoading] = useState(false);
-
   const getSoldeByStockage = useCallback(
     async (): Promise<SoldeByStockage> => {
       const db = await getDb();
@@ -114,8 +112,6 @@ export function useCourant(userId: number) {
   );
 
   return {
-    loading,
-    setLoading,
     getSoldeByStockage,
     getTransactions,
     addTransaction,

@@ -1,10 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getDb } from '../database/db';
 import type { Facture, StockageType } from '../types';
 
 export function useFactures(userId: number) {
-  const [loading, setLoading] = useState(false);
-
   const getFactures = useCallback(async (): Promise<Facture[]> => {
     const db = await getDb();
     const rows = await db.getAllAsync<Facture>(
@@ -12,7 +10,12 @@ export function useFactures(userId: number) {
        payee ASC, date_echeance ASC`,
       userId
     );
-    return rows.map((r) => ({ ...r, payee: Boolean(r.payee), notif_sent: Boolean(r.notif_sent) }));
+    return rows.map((r) => ({
+      ...r,
+      payee: Boolean(r.payee),
+      notif_sent: Boolean(r.notif_sent),
+      recurrence: r.recurrence ?? null,
+    }));
   }, [userId]);
 
   const createFacture = useCallback(
@@ -21,18 +24,20 @@ export function useFactures(userId: number) {
       montant: number,
       categorie: string,
       description?: string,
-      date_echeance?: string
+      date_echeance?: string,
+      recurrence?: 'mensuel' | null
     ): Promise<number> => {
       const db = await getDb();
       const result = await db.runAsync(
-        `INSERT INTO factures (user_id, titre, montant, categorie, description, date_echeance)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO factures (user_id, titre, montant, categorie, description, date_echeance, recurrence)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         userId,
         titre,
         montant,
         categorie,
         description ?? null,
-        date_echeance ?? null
+        date_echeance ?? null,
+        recurrence ?? null
       );
       return result.lastInsertRowId;
     },
@@ -46,17 +51,19 @@ export function useFactures(userId: number) {
       montant: number,
       categorie: string,
       description?: string,
-      date_echeance?: string
+      date_echeance?: string,
+      recurrence?: 'mensuel' | null
     ): Promise<void> => {
       const db = await getDb();
       await db.runAsync(
-        `UPDATE factures SET titre = ?, montant = ?, categorie = ?, description = ?, date_echeance = ?
+        `UPDATE factures SET titre = ?, montant = ?, categorie = ?, description = ?, date_echeance = ?, recurrence = ?
          WHERE id = ? AND user_id = ? AND payee = 0`,
         titre,
         montant,
         categorie,
         description ?? null,
         date_echeance ?? null,
+        recurrence ?? null,
         id,
         userId
       );
@@ -113,13 +120,57 @@ export function useFactures(userId: number) {
     [userId]
   );
 
+  const autoCreateRecurringBills = useCallback(async (): Promise<void> => {
+    const db = await getDb();
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+
+    const rows = await db.getAllAsync<any>(
+      `SELECT * FROM factures
+       WHERE user_id = ? AND recurrence = 'mensuel' AND payee = 1
+       AND date_paiement < ?`,
+      userId,
+      firstOfMonth
+    );
+
+    for (const row of rows) {
+      const echeance = row.date_echeance
+        ? new Date(row.date_echeance)
+        : new Date();
+      echeance.setMonth(echeance.getMonth() + 1);
+      const newEcheance = echeance.toISOString().slice(0, 10);
+
+      const existing = await db.getFirstAsync<any>(
+        `SELECT id FROM factures
+         WHERE user_id = ? AND titre = ? AND recurrence = 'mensuel'
+         AND date_echeance = ? AND payee = 0`,
+        userId,
+        row.titre,
+        newEcheance
+      );
+
+      if (!existing) {
+        await db.runAsync(
+          `INSERT INTO factures (user_id, titre, montant, categorie, description, date_echeance, recurrence)
+           VALUES (?, ?, ?, ?, ?, ?, 'mensuel')`,
+          userId,
+          row.titre,
+          row.montant,
+          row.categorie,
+          row.description,
+          newEcheance
+        );
+      }
+    }
+  }, [userId]);
+
   return {
-    loading,
-    setLoading,
     getFactures,
     createFacture,
     updateFacture,
     deleteFacture,
     payerFacture,
+    autoCreateRecurringBills,
   };
 }

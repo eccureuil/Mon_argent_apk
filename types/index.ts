@@ -5,13 +5,6 @@ export interface User {
   created_at: string;
 }
 
-export interface Session {
-  id: number;
-  user_id: number;
-  token: string;
-  created_at: string;
-}
-
 export type StockageType = 'espece' | 'mobile_money' | 'banque';
 export type TransactionType = 'entree' | 'sortie';
 export type TransactionSource = 'manuel' | 'facture';
@@ -50,6 +43,7 @@ export interface Facture {
   date_paiement: string | null;
   courant_transaction_id: number | null;
   notif_sent: boolean;
+  recurrence: 'mensuel' | null;
 }
 
 export interface SoldeByStockage {
@@ -92,3 +86,14 @@ export interface RegleBudget {
 }
 
 export type ThemePreference = 'dark' | 'light' | 'system';
+
+export interface UserCategory {
+  id: number;
+  user_id: number;
+  value: string;
+  label: string;
+  icon: string;
+  color: string;
+  type: 'entree' | 'sortie' | 'both' | 'facture';
+  sort_order: number;
+}

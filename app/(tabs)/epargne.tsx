@@ -26,7 +26,7 @@ import { useCourant } from '../../hooks/useCourant';
 import MonthSelector from '../../components/MonthSelector';
 import TransactionItem from '../../components/TransactionItem';
 import EmptyState from '../../components/EmptyState';
-import { formatAr, formatMonthYear, formatDate, formatTime } from '../../utils/format';
+import { formatAr, formatDate, formatTime } from '../../utils/format';
 import { stockageLabels, stockages } from '../../constants/categories';
 import type { EpargneTransaction, TransactionType, StockageType } from '../../types';
 

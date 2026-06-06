@@ -7,9 +7,14 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
+import { shareAsync } from 'expo-sharing';
 import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
@@ -69,6 +74,15 @@ export default function RapportScreen() {
   });
   const [epargneEvolution, setEpargneEvolution] = useState<EpargneEvolution[]>([]);
   const [soldeEpargne, setSoldeEpargne] = useState(0);
+  const [previousMonthSolde, setPreviousMonthSolde] = useState<{ courant: number; epargne: number }>({
+    courant: 0,
+    epargne: 0,
+  });
+  const [categorieSummary, setCategorieSummary] = useState<{
+    entrees: { categorie: string; total: number; color: string }[];
+    sorties: { categorie: string; total: number; color: string }[];
+  }>({ entrees: [], sorties: [] });
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -81,6 +95,8 @@ export default function RapportScreen() {
         es,
         ee,
         se,
+        pm,
+        cs,
       ] = await Promise.all([
         rapport.getMonthlySummary(month, year),
         rapport.getWeeklyBreakdown(month, year),
@@ -90,6 +106,8 @@ export default function RapportScreen() {
         rapport.getEpargneSummary(month, year),
         rapport.getEpargneEvolution(month, year),
         getSolde(),
+        rapport.getPreviousMonthSolde(month, year),
+        rapport.getCategorieSummary(month, year),
       ]);
 
       setSummary(s);
@@ -100,6 +118,8 @@ export default function RapportScreen() {
       setEpargneSummary(es);
       setEpargneEvolution(ee);
       setSoldeEpargne(se);
+      setPreviousMonthSolde(pm);
+      setCategorieSummary(cs);
     } catch (err) {
       console.error('Rapport load error:', err);
     } finally {
@@ -136,6 +156,123 @@ export default function RapportScreen() {
       setMonth(month + 1);
     }
   };
+
+  const soldeCourantFinal = previousMonthSolde.courant + summary.solde_net;
+  const soldeEpargneFinal = previousMonthSolde.epargne + epargneSummary.solde_net;
+  const patrimoineTotal = soldeStockage.total + soldeEpargne;
+
+  const generatePDF = useCallback(async () => {
+    setPdfLoading(true);
+    try {
+      const moisNom = [
+        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+      ][month - 1];
+
+      const catEntreeRows = categorieSummary.entrees
+        .map((c) => `<tr><td>${c.categorie}</td><td style="text-align:right">${formatAr(c.total)}</td></tr>`)
+        .join('');
+
+      const catSortieRows = categorieSummary.sorties
+        .map((c) => `<tr><td>${c.categorie}</td><td style="text-align:right">${formatAr(c.total)}</td></tr>`)
+        .join('');
+
+      const topRows = topDepenses
+        .map(
+          (d, i) =>
+            `<tr><td>${i + 1}</td><td>${d.categorie}</td><td>${d.description ?? ''}</td><td style="text-align:right">${formatAr(d.montant)}</td></tr>`
+        )
+        .join('');
+
+      const stockageRows = (['espece', 'mobile_money', 'banque'] as const)
+        .map((s) => `<tr><td>${stockageLabels[s]}</td><td style="text-align:right">${formatAr(soldeStockage[s])}</td></tr>`)
+        .join('');
+
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  body { font-family: 'IBM Plex Sans', Helvetica, Arial, sans-serif; font-size: 11px; color: #222; margin: 0; padding: 20px; }
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 20px 0 8px; border-bottom: 2px solid #2563EB; padding-bottom: 4px; }
+  h3 { font-size: 12px; font-weight: 600; margin: 14px 0 6px; }
+  .subtitle { color: #666; font-size: 12px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  th { text-align: left; font-size: 10px; font-weight: 600; color: #666; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid #ddd; }
+  td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
+  .totals-grid { display: flex; gap: 8px; margin-bottom: 12px; }
+  .total-card { flex: 1; padding: 10px; background: #f5f7fa; border-radius: 8px; text-align: center; }
+  .total-card .label { font-size: 9px; color: #666; text-transform: uppercase; } 
+  .total-card .value { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .footer { margin-top: 30px; text-align: center; color: #999; font-size: 10px; }
+  .positive { color: #16a34a; }
+  .negative { color: #dc2626; }
+  .neutral { color: #64748b; }
+</style>
+</head>
+<body>
+  <h1>📊 Mon Argent</h1>
+  <div class="subtitle">Relevé mensuel — ${moisNom} ${year}</div>
+
+  <h2>Compte Courant</h2>
+  <div class="totals-grid">
+    <div class="total-card"><div class="label">Report</div><div class="value neutral">${formatAr(previousMonthSolde.courant)}</div></div>
+    <div class="total-card"><div class="label">Entrées</div><div class="value positive">+${formatAr(summary.total_entrees)}</div></div>
+    <div class="total-card"><div class="label">Sorties</div><div class="value negative">-${formatAr(summary.total_sorties)}</div></div>
+    <div class="total-card"><div class="label">Solde final</div><div class="value ${soldeCourantFinal >= 0 ? 'positive' : 'negative'}">${formatAr(soldeCourantFinal)}</div></div>
+  </div>
+
+  ${catEntreeRows ? `
+  <h3>Entrées par catégorie</h3>
+  <table><thead><tr><th>Catégorie</th><th style="text-align:right">Montant</th></tr></thead><tbody>${catEntreeRows}</tbody></table>
+  ` : ''}
+
+  ${catSortieRows ? `
+  <h3>Sorties par catégorie</h3>
+  <table><thead><tr><th>Catégorie</th><th style="text-align:right">Montant</th></tr></thead><tbody>${catSortieRows}</tbody></table>
+  ` : ''}
+
+  ${topDepenses.length > 0 ? `
+  <h3>Top ${topDepenses.length} dépenses</h3>
+  <table><thead><tr><th>#</th><th>Catégorie</th><th>Description</th><th style="text-align:right">Montant</th></tr></thead><tbody>${topRows}</tbody></table>
+  ` : ''}
+
+  <h3>Solde par portefeuille</h3>
+  <table><thead><tr><th>Portefeuille</th><th style="text-align:right">Solde</th></tr></thead><tbody>${stockageRows}</tbody></table>
+
+  <h2>Compte Épargne</h2>
+  <div class="totals-grid">
+    <div class="total-card"><div class="label">Report</div><div class="value neutral">${formatAr(previousMonthSolde.epargne)}</div></div>
+    <div class="total-card"><div class="label">Ajouté</div><div class="value positive">+${formatAr(epargneSummary.total_entrees)}</div></div>
+    <div class="total-card"><div class="label">Retiré</div><div class="value negative">-${formatAr(epargneSummary.total_sorties)}</div></div>
+    <div class="total-card"><div class="label">Solde final</div><div class="value ${soldeEpargneFinal >= 0 ? 'positive' : 'negative'}">${formatAr(soldeEpargneFinal)}</div></div>
+  </div>
+
+  <h2>Vue Globale</h2>
+  <div class="totals-grid">
+    <div class="total-card"><div class="label">Patrimoine total</div><div class="value">${formatAr(patrimoineTotal)}</div></div>
+  </div>
+
+  <div class="footer">Généré le ${new Date().toLocaleDateString('fr-FR')} · Mon Argent v1.0.1</div>
+</body>
+</html>`;
+
+      const { uri } = await Print.printToFileAsync({ html, margins: { left: 16, top: 16, right: 16, bottom: 16 } });
+      await shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      Alert.alert('Erreur', 'Impossible de générer le PDF.');
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [
+    month, year, summary, previousMonthSolde, soldeCourantFinal,
+    soldeEpargneFinal, categorieSummary, topDepenses, soldeStockage,
+    epargneSummary, patrimoineTotal,
+  ]);
 
   const tauxEpargne =
     summary.total_entrees > 0
@@ -174,7 +311,6 @@ export default function RapportScreen() {
     legendFontSize: 12,
   }));
 
-  const patrimoineTotal = soldeStockage.total + soldeEpargne;
   const patrimoineData =
     patrimoineTotal > 0
       ? [
@@ -225,13 +361,27 @@ export default function RapportScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={{ paddingTop: insets.top + 8 }}>
-        <MonthSelector
-          month={month}
-          year={year}
-          onPrev={handlePrev}
-          onNext={handleNext}
-        />
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View style={{ flex: 1 }}>
+          <MonthSelector
+            month={month}
+            year={year}
+            onPrev={handlePrev}
+            onNext={handleNext}
+          />
+        </View>
+        <TouchableOpacity
+          style={styles.pdfButton}
+          onPress={generatePDF}
+          disabled={pdfLoading}
+          activeOpacity={0.7}
+        >
+          {pdfLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="document-text-outline" size={20} color="#fff" />
+          )}
+        </TouchableOpacity>
       </View>
       <ScrollView
         refreshControl={
@@ -244,7 +394,26 @@ export default function RapportScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Compte Courant</Text>
 
-        <View style={styles.statGrid}>
+        <View style={styles.statGrid2}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Report</Text>
+            <Text style={[styles.statValue, { color: colors.textSec }]}>
+              {formatAr(previousMonthSolde.courant)}
+            </Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Solde final</Text>
+            <Text
+              style={[
+                styles.statValue,
+                { color: soldeCourantFinal >= 0 ? colors.entree : colors.sortie },
+              ]}
+            >
+              {formatAr(soldeCourantFinal)}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.statGrid2}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Entrées</Text>
             <Text style={[styles.statValue, { color: colors.entree }]}>
@@ -255,20 +424,6 @@ export default function RapportScreen() {
             <Text style={styles.statLabel}>Sorties</Text>
             <Text style={[styles.statValue, { color: colors.sortie }]}>
               -{formatAr(summary.total_sorties)}
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Solde net</Text>
-            <Text
-              style={[
-                styles.statValue,
-                {
-                  color:
-                    summary.solde_net >= 0 ? colors.entree : colors.sortie,
-                },
-              ]}
-            >
-              {formatAr(summary.solde_net)}
             </Text>
           </View>
         </View>
@@ -388,7 +543,26 @@ export default function RapportScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Compte Épargne</Text>
 
-        <View style={styles.statGrid}>
+        <View style={styles.statGrid2}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Report</Text>
+            <Text style={[styles.statValue, { color: colors.textSec }]}>
+              {formatAr(previousMonthSolde.epargne)}
+            </Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Solde final</Text>
+            <Text
+              style={[
+                styles.statValue,
+                { color: soldeEpargneFinal >= 0 ? colors.epargne : colors.sortie },
+              ]}
+            >
+              {formatAr(soldeEpargneFinal)}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.statGrid2}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Ajouté</Text>
             <Text style={[styles.statValue, { color: colors.epargne }]}>
@@ -399,17 +573,6 @@ export default function RapportScreen() {
             <Text style={styles.statLabel}>Retiré</Text>
             <Text style={[styles.statValue, { color: colors.warning }]}>
               -{formatAr(epargneSummary.total_sorties)}
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Solde</Text>
-            <Text
-              style={[
-                styles.statValue,
-                { color: epargneSummary.solde_net >= 0 ? colors.epargne : colors.sortie },
-              ]}
-            >
-              {formatAr(epargneSummary.solde_net)}
             </Text>
           </View>
         </View>
@@ -482,6 +645,20 @@ function createStyles(c: Record<string, any>) {
     scroll: {
       paddingBottom: 32,
     },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+    },
+    pdfButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: c.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
+    },
     section: {
       paddingHorizontal: 16,
       marginTop: 8,
@@ -496,6 +673,11 @@ function createStyles(c: Record<string, any>) {
       flexDirection: 'row',
       gap: 8,
       marginBottom: 12,
+    },
+    statGrid2: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 8,
     },
     statCard: {
       flex: 1,

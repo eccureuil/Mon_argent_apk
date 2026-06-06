@@ -24,12 +24,13 @@ import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
 import { checkBudgetAlert } from '../../hooks/useParametres';
+import { getCategories } from '../../hooks/useCategories';
 import StockageTabs from '../../components/StockageTabs';
 import TransactionItem from '../../components/TransactionItem';
 import EmptyState from '../../components/EmptyState';
 import { formatAr, formatDate, formatTime } from '../../utils/format';
-import { courantCategories, stockageLabels, stockages } from '../../constants/categories';
-import type { StockageType, CourantTransaction, TransactionType } from '../../types';
+import { stockageLabels, stockages } from '../../constants/categories';
+import type { StockageType, CourantTransaction, TransactionType, UserCategory } from '../../types';
 
 export default function CourantScreen() {
   const { colors } = useTheme();
@@ -44,6 +45,7 @@ export default function CourantScreen() {
   const [stockage, setStockage] = useState<StockageType>('espece');
   const [solde, setSolde] = useState(0);
   const [transactions, setTransactions] = useState<CourantTransaction[]>([]);
+  const [categories, setCategories] = useState<UserCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -66,16 +68,24 @@ export default function CourantScreen() {
   const [transferFrais, setTransferFrais] = useState('');
   const [transferSaving, setTransferSaving] = useState(false);
 
+  const categoryMap = useMemo(() => {
+    const m: Record<string, { icon: string; color: string }> = {};
+    for (const c of categories) m[c.value] = { icon: c.icon, color: c.color };
+    return m;
+  }, [categories]);
+
   const loadData = useCallback(async (forDate: Date) => {
     try {
       const m = forDate.getMonth() + 1;
       const y = forDate.getFullYear();
-      const [soldeData, txData] = await Promise.all([
+      const [soldeData, txData, cats] = await Promise.all([
         getSoldeByStockage(),
         getTransactions(stockage, m, y),
+        getCategories(userId),
       ]);
       setSolde(soldeData[stockage]);
       setTransactions(txData);
+      setCategories(cats);
     } catch (err) {
       console.error('Courant load error:', err);
     } finally {
@@ -146,7 +156,7 @@ export default function CourantScreen() {
       if (txType === 'sortie') {
         const alert = await checkBudgetAlert(userId, txCategorie, stockage);
         if (alert) {
-          const catLabel = courantCategories.find((c) => c.value === txCategorie)?.label ?? txCategorie;
+          const catLabel = categories.find((c) => c.value === txCategorie)?.label ?? txCategorie;
           if (alert.depasse) {
             Alert.alert(
               '⚠️ Plafond dépassé',
@@ -359,7 +369,7 @@ export default function CourantScreen() {
       <FlashList
         data={dayTransactions}
         renderItem={({ item, index }) => (
-          <TransactionItem item={item} index={index} onPress={(item) => setDetailItem(item as CourantTransaction)} onDelete={handleDelete} />
+          <TransactionItem item={item} index={index} categoryMap={categoryMap} onPress={(item) => setDetailItem(item as CourantTransaction)} onDelete={handleDelete} />
         )}
         keyExtractor={(item) => item.id.toString()}
         ListHeaderComponent={renderHeader}
@@ -413,7 +423,7 @@ export default function CourantScreen() {
                   mode={Platform.OS === 'android' ? 'dropdown' : undefined}
                 >
                   <Picker.Item label="Choisir..." value="" color={colors.textMuted} style={{ backgroundColor: colors.card }} />
-                  {courantCategories.map((c) => (
+                  {categories.filter(c => c.type === txType || c.type === 'both').map((c) => (
                     <Picker.Item
                       key={c.value}
                       label={c.label}

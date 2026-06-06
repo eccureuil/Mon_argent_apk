@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { getDb } from '../database/db';
 import { colors } from '../constants/colors';
+import { getCategories } from './useCategories';
 import type {
   MonthlySummary,
   WeeklyBreakdown,
@@ -84,14 +85,15 @@ export function useRapport(userId: number) {
       );
 
       const grandTotal = rows.reduce((sum, r) => sum + r.total, 0);
+      const cats = await getCategories(userId);
+      const catColorMap: Record<string, string> = {};
+      for (const c of cats) catColorMap[c.value] = c.color;
 
       return rows.map((r) => ({
         categorie: r.categorie,
         montant: r.total,
         percentage: grandTotal > 0 ? (r.total / grandTotal) * 100 : 0,
-        color:
-          (colors.categories as Record<string, string>)[r.categorie] ??
-          colors.textSec,
+        color: catColorMap[r.categorie] ?? colors.textSec,
       }));
     },
     [userId]
@@ -180,6 +182,70 @@ export function useRapport(userId: number) {
     [userId]
   );
 
+  const getPreviousMonthSolde = useCallback(
+    async (month: number, year: number): Promise<{ courant: number; epargne: number }> => {
+      const db = await getDb();
+      const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+
+      const courantRow = await db.getFirstAsync<{ solde: number }>(
+        `SELECT COALESCE(SUM(CASE WHEN type = 'entree' THEN montant ELSE -montant END), 0) as solde
+         FROM courant_transactions
+         WHERE user_id = ? AND date < ?`,
+        userId,
+        firstDay
+      );
+
+      const epargneRow = await db.getFirstAsync<{ solde: number }>(
+        `SELECT COALESCE(SUM(CASE WHEN type = 'entree' THEN montant ELSE -montant END), 0) as solde
+         FROM epargne_transactions
+         WHERE user_id = ? AND date < ?`,
+        userId,
+        firstDay
+      );
+
+      return {
+        courant: courantRow?.solde ?? 0,
+        epargne: epargneRow?.solde ?? 0,
+      };
+    },
+    [userId]
+  );
+
+  const getCategorieSummary = useCallback(
+    async (month: number, year: number) => {
+      const db = await getDb();
+      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+
+      const rows = await db.getAllAsync<{ type: string; categorie: string; total: number }>(
+        `SELECT type, categorie, COALESCE(SUM(montant), 0) as total
+         FROM courant_transactions
+         WHERE user_id = ? AND strftime('%Y-%m', date) = ?
+         GROUP BY type, categorie
+         ORDER BY type, total DESC`,
+        userId,
+        monthStr
+      );
+
+      const cats = await getCategories(userId);
+      const catColorMap: Record<string, string> = {};
+      for (const c of cats) catColorMap[c.value] = c.color;
+
+      const entrees: { categorie: string; total: number; color: string }[] = [];
+      const sorties: { categorie: string; total: number; color: string }[] = [];
+      for (const r of rows) {
+        const item = {
+          categorie: r.categorie,
+          total: r.total,
+          color: catColorMap[r.categorie] ?? colors.textSec,
+        };
+        if (r.type === 'entree') entrees.push(item);
+        else sorties.push(item);
+      }
+      return { entrees, sorties };
+    },
+    [userId]
+  );
+
   return {
     getMonthlySummary,
     getWeeklyBreakdown,
@@ -187,5 +253,7 @@ export function useRapport(userId: number) {
     getEpargneEvolution,
     getTopDepenses,
     getEpargneSummary,
+    getPreviousMonthSolde,
+    getCategorieSummary,
   };
 }

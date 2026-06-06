@@ -5,30 +5,6 @@ import type { User } from '../types';
 
 const SESSION_KEY = 'session_token';
 
-export async function registerUser(
-  username: string,
-  password: string
-): Promise<number> {
-  const db = await getDb();
-  const hash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    password
-  );
-  try {
-    const result = await db.runAsync(
-      'INSERT INTO users (username, password_hash) VALUES (?, ?)',
-      username,
-      hash
-    );
-    return result.lastInsertRowId;
-  } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('UNIQUE')) {
-      throw new Error('Nom d\'utilisateur déjà pris');
-    }
-    throw err;
-  }
-}
-
 export async function registerAndLoginUser(
   username: string,
   password: string
@@ -140,11 +116,52 @@ export async function logoutUser(): Promise<void> {
   }
 }
 
-export async function getUserById(id: number): Promise<User | null> {
+export async function updateUsername(
+  userId: number,
+  newUsername: string
+): Promise<void> {
+  const db = await getDb();
+  try {
+    await db.runAsync(
+      'UPDATE users SET username = ? WHERE id = ?',
+      newUsername,
+      userId
+    );
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes('UNIQUE')) {
+      throw new Error('Nom d\'utilisateur déjà pris');
+    }
+    throw err;
+  }
+}
+
+export async function updatePassword(
+  userId: number,
+  oldPassword: string,
+  newPassword: string
+): Promise<void> {
   const db = await getDb();
   const user = await db.getFirstAsync<User>(
     'SELECT * FROM users WHERE id = ?',
-    id
+    userId
   );
-  return user ?? null;
+  if (!user) throw new Error('Utilisateur introuvable');
+
+  const oldHash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    oldPassword
+  );
+  if (user.password_hash !== oldHash) {
+    throw new Error('Ancien mot de passe incorrect');
+  }
+
+  const newHash = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    newPassword
+  );
+  await db.runAsync(
+    'UPDATE users SET password_hash = ? WHERE id = ?',
+    newHash,
+    userId
+  );
 }
