@@ -62,7 +62,6 @@ export default function DashboardScreen() {
   const [monthlyEntrees, setMonthlyEntrees] = useState(0);
   const [monthlySorties, setMonthlySorties] = useState(0);
   const [reportCourant, setReportCourant] = useState(0);
-  const [reportEpargne, setReportEpargne] = useState(0);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<UserCategory[]>([]);
 
@@ -92,7 +91,6 @@ export default function DashboardScreen() {
       setSoldeCourant(soldeC);
       setSoldeEpargne(soldeE);
       setReportCourant(prevReport.courant);
-      setReportEpargne(prevReport.epargne);
       setRecentTx(allTx.slice(0, 5));
       setCategories(cats);
       setUrgentFactures(
@@ -259,7 +257,7 @@ export default function DashboardScreen() {
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Entrées</Text>
             <Text style={[styles.summaryValue, { color: colors.entree }]}>
-              +{formatAr(monthlyEntrees)}
+              +{formatAr(reportCourant + monthlyEntrees)}
             </Text>
           </View>
           <View style={styles.summaryCard}>
@@ -273,25 +271,12 @@ export default function DashboardScreen() {
             <Text
               style={[
                 styles.summaryValue,
-                { color: monthlyEntrees - monthlySorties >= 0 ? colors.entree : colors.sortie },
+                { color: reportCourant + monthlyEntrees - monthlySorties >= 0 ? colors.entree : colors.sortie },
               ]}
             >
-              {formatAr(monthlyEntrees - monthlySorties)}
+              {formatAr(reportCourant + monthlyEntrees - monthlySorties)}
             </Text>
           </View>
-        </View>
-
-        <View style={styles.reportRow}>
-          <Ionicons name="caret-back" size={16} color={colors.textMuted} />
-          <Text style={styles.reportLabel}>Report</Text>
-          <Text style={styles.reportValue}>{formatAr(reportCourant + reportEpargne)}</Text>
-          <Text style={styles.reportSep}>+</Text>
-          <Text style={styles.reportLabel}>Flux</Text>
-          <Text style={styles.reportValue}>{formatAr(monthlyEntrees - monthlySorties)}</Text>
-          <Text style={styles.reportSep}>=</Text>
-          <Text style={[styles.reportValue, { color: colors.text, fontWeight: '700' }]}>
-            {formatAr(reportCourant + reportEpargne + monthlyEntrees - monthlySorties)}
-          </Text>
         </View>
 
         <View style={styles.section}>
@@ -588,32 +573,6 @@ function createStyles(c: ColorPalette) {
       fontSize: 14,
       fontWeight: '700',
       fontFamily: 'IBMPlexSans_700Bold',
-    },
-    reportRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      marginHorizontal: 16,
-      marginTop: 8,
-      backgroundColor: c.card,
-      borderRadius: 10,
-    },
-    reportLabel: {
-      color: c.textMuted,
-      fontSize: 12,
-      fontWeight: '500',
-    },
-    reportValue: {
-      color: c.text,
-      fontSize: 13,
-      fontWeight: '600',
-    },
-    reportSep: {
-      color: c.textMuted,
-      fontSize: 13,
     },
     section: {
       marginTop: 20,
