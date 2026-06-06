@@ -819,7 +819,7 @@ export default function ParametresScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={guideVisible} transparent animationType="slide" statusBarTranslucent presentationStyle="fullScreen">
+      <Modal visible={guideVisible} animationType="slide" statusBarTranslucent presentationStyle="fullScreen">
         <View style={styles.guideOverlay}>
           <View style={[styles.guideHeader, { paddingTop: insets.top + 12 }]}>
             <Text style={styles.guideTitle}>Guide d'utilisation</Text>
