@@ -2,7 +2,9 @@ import { useCallback } from 'react';
 import { getDb } from '../database/db';
 import type { EpargneTransaction, TransactionType } from '../types';
 
+/** Hook for savings (épargne) account transactions and balance. */
 export function useEpargne(userId: number) {
+  /** Get the total savings balance (entrees − sorties). */
   const getSolde = useCallback(async (): Promise<number> => {
     const db = await getDb();
     const entrees = await db.getFirstAsync<{ total: number }>(
@@ -18,6 +20,7 @@ export function useEpargne(userId: number) {
     return (entrees?.total ?? 0) - (sorties?.total ?? 0);
   }, [userId]);
 
+  /** Get savings transactions for a given month. */
   const getTransactions = useCallback(
     async (month: number, year: number): Promise<EpargneTransaction[]> => {
       const db = await getDb();
@@ -34,6 +37,7 @@ export function useEpargne(userId: number) {
     [userId]
   );
 
+  /** Get all savings transactions (no date filter). */
   const getAllTransactions = useCallback(async (): Promise<EpargneTransaction[]> => {
     const db = await getDb();
     const rows = await db.getAllAsync<EpargneTransaction>(
@@ -44,6 +48,7 @@ export function useEpargne(userId: number) {
     return rows;
   }, [userId]);
 
+  /** Insert a new savings transaction. */
   const addTransaction = useCallback(
     async (
       type: TransactionType,
@@ -65,6 +70,7 @@ export function useEpargne(userId: number) {
     [userId]
   );
 
+  /** Delete a savings transaction by id (scoped to user). */
   const deleteTransaction = useCallback(
     async (id: number): Promise<void> => {
       const db = await getDb();

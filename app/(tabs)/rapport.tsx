@@ -17,6 +17,7 @@ import * as Print from 'expo-print';
 import { shareAsync } from 'expo-sharing';
 import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../hooks/useTheme';
+import type { ColorPalette } from '../../constants/colors';
 import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
 import { useEpargne } from '../../hooks/useEpargne';
@@ -35,6 +36,7 @@ import { stockageLabels } from '../../constants/categories';
 
 const screenWidth = Dimensions.get('window').width;
 
+/** Rapport screen with monthly charts, stats and PDF export. */
 export default function RapportScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -214,7 +216,7 @@ export default function RapportScreen() {
 </style>
 </head>
 <body>
-  <h1>📊 Mon Argent</h1>
+  <h1>Mon Argent</h1>
   <div class="subtitle">Relevé mensuel — ${moisNom} ${year}</div>
 
   <h2>Compte Courant</h2>
@@ -274,9 +276,10 @@ export default function RapportScreen() {
     epargneSummary, patrimoineTotal,
   ]);
 
+  const baseTaux = summary.total_entrees + previousMonthSolde.courant;
   const tauxEpargne =
-    summary.total_entrees > 0
-      ? ((summary.total_entrees - summary.total_sorties) / summary.total_entrees) * 100
+    baseTaux > 0
+      ? ((baseTaux - summary.total_sorties) / baseTaux) * 100
       : null;
 
   const barChartData = {
@@ -437,7 +440,6 @@ export default function RapportScreen() {
                 { color: tauxEpargne >= 0 ? colors.entree : colors.sortie },
               ]}
             >
-              {tauxEpargne >= 0 ? '' : ''}
               {tauxEpargne.toFixed(1)}%
             </Text>
           </View>
@@ -452,12 +454,13 @@ export default function RapportScreen() {
           yAxisSuffix=""
           chartConfig={{
             backgroundColor: colors.card,
-            backgroundGradientFrom: colors.card,
+            backgroundGradientFrom: colors.surface,
             backgroundGradientTo: colors.card,
             decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            color: (opacity = 1) => `rgba(${parseInt(colors.text.slice(1,3),16)}, ${parseInt(colors.text.slice(3,5),16)}, ${parseInt(colors.text.slice(5,7),16)}, ${opacity})`,
             labelColor: () => colors.textSec,
-            propsForBackgroundLines: { stroke: colors.border },
+            propsForBackgroundLines: { stroke: colors.border, strokeWidth: 0.5 },
+            propsForLabels: { fontSize: 11, fontWeight: '500' },
             barPercentage: 0.6,
           }}
           style={styles.chart}
@@ -474,7 +477,12 @@ export default function RapportScreen() {
               width={screenWidth - 48}
               height={200}
               chartConfig={{
-                color: () => colors.text,
+                backgroundColor: colors.card,
+                backgroundGradientFrom: colors.surface,
+                backgroundGradientTo: colors.card,
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(${parseInt(colors.text.slice(1,3),16)}, ${parseInt(colors.text.slice(3,5),16)}, ${parseInt(colors.text.slice(5,7),16)}, ${opacity})`,
+                labelColor: () => colors.textSec,
               }}
               accessor="amount"
               backgroundColor="transparent"
@@ -585,24 +593,29 @@ export default function RapportScreen() {
             height={200}
             chartConfig={{
               backgroundColor: colors.card,
-              backgroundGradientFrom: colors.card,
+              backgroundGradientFrom: colors.surface,
               backgroundGradientTo: colors.card,
               decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
+              color: (opacity = 1) => `rgba(${parseInt(colors.text.slice(1,3),16)}, ${parseInt(colors.text.slice(3,5),16)}, ${parseInt(colors.text.slice(5,7),16)}, ${opacity})`,
               labelColor: () => colors.textSec,
-              propsForBackgroundLines: { stroke: colors.border },
+              propsForBackgroundLines: { stroke: colors.border, strokeWidth: 0.5 },
               propsForDots: {
                 r: '4',
                 strokeWidth: '2',
                 stroke: colors.epargne,
               },
+              propsForLabels: { fontSize: 11, fontWeight: '500' },
+              fillShadowGradientFrom: colors.epargne,
+              fillShadowGradientFromOpacity: 0.4,
+              fillShadowGradientTo: colors.epargne,
+              fillShadowGradientToOpacity: 0.05,
             }}
             style={styles.chart}
             bezier
             fromZero
           />
         ) : (
-          <EmptyState emoji="📈" message="Pas assez de données pour le graphique" />
+          <EmptyState iconName="trending-up-outline" message="Pas assez de données pour le graphique" />
         )}
       </View>
 
@@ -616,13 +629,18 @@ export default function RapportScreen() {
           <Text style={styles.patrimoineValue}>{formatAr(patrimoineTotal)}</Text>
         </View>
 
-        {patrimoineTotal > 0 && (
+          {patrimoineTotal > 0 && (
           <PieChart
             data={patrimoineData}
             width={screenWidth - 48}
             height={200}
             chartConfig={{
-              color: () => colors.text,
+              backgroundColor: colors.card,
+              backgroundGradientFrom: colors.surface,
+              backgroundGradientTo: colors.card,
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(${parseInt(colors.text.slice(1,3),16)}, ${parseInt(colors.text.slice(3,5),16)}, ${parseInt(colors.text.slice(5,7),16)}, ${opacity})`,
+              labelColor: () => colors.textSec,
             }}
             accessor="amount"
             backgroundColor="transparent"
@@ -636,7 +654,7 @@ export default function RapportScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,

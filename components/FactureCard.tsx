@@ -4,6 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { formatAr, formatDateTime } from '../utils/format';
+import type { ColorPalette } from '../constants/colors';
 import type { Facture } from '../types';
 
 interface FactureCardProps {
@@ -14,6 +15,7 @@ interface FactureCardProps {
   onPay: (facture: Facture) => void;
 }
 
+/** A bill card showing title, amount, due date badge, and a pay button. */
 export default function FactureCard({
   facture,
   index,
@@ -130,7 +132,7 @@ export default function FactureCard({
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     card: {
       flexDirection: 'row',

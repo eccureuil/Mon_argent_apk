@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
 import { getDb } from '../database/db';
-import type { Facture, StockageType } from '../types';
+import type { Facture, StockageType, NotifState } from '../types';
 
+/** Hook for managing bills (factures): CRUD, payment, and recurring creation. */
 export function useFactures(userId: number) {
+  /** Get all bills for the user, sorted by unpaid then due date. */
   const getFactures = useCallback(async (): Promise<Facture[]> => {
     const db = await getDb();
     const rows = await db.getAllAsync<Facture>(
@@ -13,11 +15,12 @@ export function useFactures(userId: number) {
     return rows.map((r) => ({
       ...r,
       payee: Boolean(r.payee),
-      notif_sent: Boolean(r.notif_sent),
+      notif_state: (r.notif_state ?? 0) as NotifState,
       recurrence: r.recurrence ?? null,
     }));
   }, [userId]);
 
+  /** Insert a new bill and return its id. */
   const createFacture = useCallback(
     async (
       titre: string,
@@ -44,6 +47,7 @@ export function useFactures(userId: number) {
     [userId]
   );
 
+  /** Update an unpaid bill's fields. */
   const updateFacture = useCallback(
     async (
       id: number,
@@ -71,6 +75,7 @@ export function useFactures(userId: number) {
     [userId]
   );
 
+  /** Delete a bill by id (scoped to user). */
   const deleteFacture = useCallback(
     async (id: number): Promise<void> => {
       const db = await getDb();
@@ -83,6 +88,7 @@ export function useFactures(userId: number) {
     [userId]
   );
 
+  /** Mark a bill as paid, creating a 'sortie' courant transaction linked to it. */
   const payerFacture = useCallback(
     async (
       factureId: number,
@@ -120,6 +126,7 @@ export function useFactures(userId: number) {
     [userId]
   );
 
+  /** Auto-generate the next month's instance for each 'mensuel' bill that was paid last month. */
   const autoCreateRecurringBills = useCallback(async (): Promise<void> => {
     const db = await getDb();
     const now = new Date();

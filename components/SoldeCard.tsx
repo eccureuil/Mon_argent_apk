@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import { formatAr } from '../utils/format';
+import type { ColorPalette } from '../constants/colors';
 
 interface SoldeCardProps {
   titre: string;
@@ -10,6 +11,7 @@ interface SoldeCardProps {
   children?: React.ReactNode;
 }
 
+/** A wallet balance card with title, amount, and optional children. */
 export default function SoldeCard({
   titre,
   solde,
@@ -31,7 +33,7 @@ export default function SoldeCard({
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     card: {
       flex: 1,

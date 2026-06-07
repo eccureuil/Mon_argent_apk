@@ -1,5 +1,7 @@
 export interface ColorPalette {
   bg: string;
+  bgGradientFrom: string;
+  bgGradientTo: string;
   surface: string;
   card: string;
   text: string;
@@ -38,6 +40,8 @@ export const CATEGORY_COLORS = [
 
 export const colors: ColorPalette = {
   bg: '#000000',
+  bgGradientFrom: '#000000',
+  bgGradientTo: '#000000',
   surface: '#1A1D28',
   card: '#121212',
   text: '#FFFFFF',
@@ -60,7 +64,9 @@ export const colors: ColorPalette = {
 };
 
 export const lightColors: ColorPalette = {
-  bg: '#F2F2F7',
+  bg: '#F7F8FB',
+  bgGradientFrom: '#F0F3F8',
+  bgGradientTo: '#FAFBFC',
   surface: '#FFFFFF',
   card: '#FFFFFF',
   text: '#1C1C1E',

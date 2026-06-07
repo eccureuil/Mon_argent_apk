@@ -9,7 +9,9 @@ import type {
   EpargneEvolution,
 } from '../types';
 
+/** Hook for monthly/periodic reports and breakdowns on courant + epargne data. */
 export function useRapport(userId: number) {
+  /** Get total entrees, sorties, and net solde for a given month. */
   const getMonthlySummary = useCallback(
     async (month: number, year: number): Promise<MonthlySummary> => {
       const db = await getDb();
@@ -39,6 +41,7 @@ export function useRapport(userId: number) {
     [userId]
   );
 
+  /** Get weekly entrees/sorties breakdown within a month. */
   const getWeeklyBreakdown = useCallback(
     async (month: number, year: number): Promise<WeeklyBreakdown[]> => {
       const db = await getDb();
@@ -69,6 +72,7 @@ export function useRapport(userId: number) {
     [userId]
   );
 
+  /** Get spending totals grouped by category with percentage and color. */
   const getCategorieBreakdown = useCallback(
     async (month: number, year: number): Promise<CategorieBreakdown[]> => {
       const db = await getDb();
@@ -99,6 +103,7 @@ export function useRapport(userId: number) {
     [userId]
   );
 
+  /** Get the daily running solde of the savings account for a month. */
   const getEpargneEvolution = useCallback(
     async (month: number, year: number): Promise<EpargneEvolution[]> => {
       const db = await getDb();
@@ -130,6 +135,7 @@ export function useRapport(userId: number) {
     [userId]
   );
 
+  /** Get the top N largest 'sortie' transactions for a month. */
   const getTopDepenses = useCallback(
     async (month: number, year: number, limit = 5) => {
       const db = await getDb();
@@ -153,6 +159,7 @@ export function useRapport(userId: number) {
     [userId]
   );
 
+  /** Get the monthly savings summary (entrees, sorties, net). */
   const getEpargneSummary = useCallback(
     async (month: number, year: number): Promise<MonthlySummary> => {
       const db = await getDb();
@@ -182,6 +189,7 @@ export function useRapport(userId: number) {
     [userId]
   );
 
+  /** Get the courant and epargne solde just before a given month starts. */
   const getPreviousMonthSolde = useCallback(
     async (month: number, year: number): Promise<{ courant: number; epargne: number }> => {
       const db = await getDb();
@@ -211,6 +219,7 @@ export function useRapport(userId: number) {
     [userId]
   );
 
+  /** Get separate entrees/sorties totals grouped by category for a month. */
   const getCategorieSummary = useCallback(
     async (month: number, year: number) => {
       const db = await getDb();

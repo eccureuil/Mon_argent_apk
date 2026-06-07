@@ -21,6 +21,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { FlashList } from '@shopify/flash-list';
 import { useTheme } from '../../hooks/useTheme';
+import type { ColorPalette } from '../../constants/colors';
 import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
 import { useFactures } from '../../hooks/useFactures';
@@ -34,6 +35,7 @@ import type { Facture, StockageType, UserCategory } from '../../types';
 
 type FilterTab = 'toutes' | 'a_payer' | 'payees';
 
+/** Factures screen with bill management and payment. */
 export default function FacturesScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -285,6 +287,21 @@ export default function FacturesScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={{ paddingTop: insets.top + 8, backgroundColor: colors.bg }}>
+        {renderFilterTabs()}
+        {filter !== 'payees' && (
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryLeft}>
+              <Ionicons name="document-text" size={24} color={colors.primary} />
+              <View>
+                <Text style={styles.summaryLabel}>Total à payer</Text>
+                <Text style={styles.summaryCount}>{nbAPayer} facture{nbAPayer > 1 ? 's' : ''}</Text>
+              </View>
+            </View>
+            <Text style={styles.summaryAmount}>{formatAr(totalAPayer)}</Text>
+          </View>
+        )}
+      </View>
       <FlashList
         data={filteredFactures}
         renderItem={({ item, index }) => (
@@ -307,26 +324,9 @@ export default function FacturesScreen() {
           />
         )}
         keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={
-          <View style={{ paddingTop: insets.top + 8 }}>
-            {renderFilterTabs()}
-            {filter !== 'payees' && (
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryLeft}>
-                  <Ionicons name="document-text" size={24} color={colors.primary} />
-                  <View>
-                    <Text style={styles.summaryLabel}>Total à payer</Text>
-                    <Text style={styles.summaryCount}>{nbAPayer} facture{nbAPayer > 1 ? 's' : ''}</Text>
-                  </View>
-                </View>
-                <Text style={styles.summaryAmount}>{formatAr(totalAPayer)}</Text>
-              </View>
-            )}
-          </View>
-        }
         ListEmptyComponent={
           <EmptyState
-            emoji="📄"
+            iconName="document-text-outline"
             message={
               filter === 'a_payer'
                 ? 'Aucune facture à payer'
@@ -660,7 +660,7 @@ export default function FacturesScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,

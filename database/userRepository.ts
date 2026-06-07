@@ -5,6 +5,7 @@ import type { User } from '../types';
 
 const SESSION_KEY = 'session_token';
 
+/** Register a new user and create a session token stored in SecureStore. */
 export async function registerAndLoginUser(
   username: string,
   password: string
@@ -47,6 +48,7 @@ export async function registerAndLoginUser(
   return { user, token };
 }
 
+/** Authenticate existing user and create a new session token. */
 export async function loginUser(
   username: string,
   password: string
@@ -78,6 +80,7 @@ export async function loginUser(
   return { user, token };
 }
 
+/** Check the stored session token and return the associated User or null. */
 export async function validateSession(): Promise<User | null> {
   try {
     const token = await SecureStore.getItemAsync(SESSION_KEY);
@@ -103,6 +106,7 @@ export async function validateSession(): Promise<User | null> {
   }
 }
 
+/** Delete the session from DB and remove token from SecureStore. */
 export async function logoutUser(): Promise<void> {
   try {
     const token = await SecureStore.getItemAsync(SESSION_KEY);
@@ -116,6 +120,7 @@ export async function logoutUser(): Promise<void> {
   }
 }
 
+/** Update the user's username (throws if already taken). */
 export async function updateUsername(
   userId: number,
   newUsername: string
@@ -135,6 +140,7 @@ export async function updateUsername(
   }
 }
 
+/** Update the user's password after verifying the old password. */
 export async function updatePassword(
   userId: number,
   oldPassword: string,

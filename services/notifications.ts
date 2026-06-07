@@ -4,7 +4,9 @@ import { getDb } from '../database/db';
 import { formatAr } from '../utils/format';
 
 let soundEnabled = true;
+const MIN_NOTIFICATION_INTERVAL_SECONDS = 60;
 
+/** Enable or disable notification sounds. */
 export function setSoundEnabled(enabled: boolean) {
   soundEnabled = enabled;
 }
@@ -19,6 +21,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/** Request notification permissions from the user (Android channel setup included). */
 export async function requestPermissions(): Promise<boolean> {
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -42,10 +45,12 @@ export async function requestPermissions(): Promise<boolean> {
   }
 }
 
+/** Cancel all pending scheduled notifications. */
 export async function cancelAllScheduled(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
+/** Schedule a daily notification at the given hour/minute with a month-to-date summary. */
 export async function scheduleDailySummary(
   userId: number,
   hour: number,
@@ -97,6 +102,7 @@ export async function scheduleDailySummary(
   }
 }
 
+/** Send an alert for every unpaid bill past its due date (marks notif_state = 2). */
 export async function checkOverdueBills(userId: number): Promise<void> {
   try {
     const db = await getDb();
@@ -107,7 +113,7 @@ export async function checkOverdueBills(userId: number): Promise<void> {
       date_echeance: string;
     }>(
       `SELECT id, titre, montant, date_echeance FROM factures
-       WHERE user_id = ? AND payee = 0 AND date_echeance < datetime('now') AND notif_sent = 0`,
+       WHERE user_id = ? AND payee = 0 AND date_echeance < datetime('now') AND notif_state = 0`,
       userId
     );
 
@@ -126,7 +132,7 @@ export async function checkOverdueBills(userId: number): Promise<void> {
       });
 
       await db.runAsync(
-        'UPDATE factures SET notif_sent = 1 WHERE id = ?',
+        'UPDATE factures SET notif_state = 2 WHERE id = ?',
         bill.id
       );
     }
@@ -135,6 +141,7 @@ export async function checkOverdueBills(userId: number): Promise<void> {
   }
 }
 
+/** Send an alert for bills due in exactly `joursAvant` days (notif_state = 0 only). */
 export async function checkUpcomingDueBills(
   userId: number,
   joursAvant: number
@@ -152,7 +159,7 @@ export async function checkUpcomingDueBills(
       date_echeance: string;
     }>(
       `SELECT id, titre, montant, date_echeance FROM factures
-       WHERE user_id = ? AND payee = 0 AND date_echeance = ? AND notif_sent = 0`,
+       WHERE user_id = ? AND payee = 0 AND date_echeance = ? AND notif_state = 0`,
       userId,
       targetStr
     );
@@ -172,6 +179,7 @@ export async function checkUpcomingDueBills(
   }
 }
 
+/** Schedule a one-time notification for a bill on its due date. */
 export async function scheduleBillDueNotification(
   billId: number,
   titre: string,
@@ -194,7 +202,7 @@ export async function scheduleBillDueNotification(
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: Math.max(60, Math.floor(diff / 1000)),
+        seconds: Math.max(MIN_NOTIFICATION_INTERVAL_SECONDS, Math.floor(diff / 1000)),
         repeats: false,
       },
     });

@@ -31,6 +31,8 @@ export interface EpargneTransaction {
   date: string;
 }
 
+export type NotifState = 0 | 1 | 2;
+
 export interface Facture {
   id: number;
   user_id: number;
@@ -42,7 +44,7 @@ export interface Facture {
   payee: boolean;
   date_paiement: string | null;
   courant_transaction_id: number | null;
-  notif_sent: boolean;
+  notif_state: NotifState;
   recurrence: 'mensuel' | null;
 }
 

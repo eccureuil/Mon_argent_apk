@@ -20,7 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
+import type { ColorPalette } from '../../constants/colors';
 
+/** Registration form with username/password validation and account creation. */
 export default function RegisterScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -87,7 +89,7 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Image source={require('../../assets/mon_argent_logo.png')} style={styles.logo} />
+          <Image source={require('../../assets/icon.png')} style={styles.logo} />
           <Text style={styles.title}>Créer un compte</Text>
           <Text style={styles.subtitle}>Rejoignez Mon Argent</Text>
 
@@ -176,7 +178,7 @@ export default function RegisterScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -252,7 +254,7 @@ function createStyles(c: Record<string, any>) {
       opacity: 0.6,
     },
     buttonText: {
-      color: c.text,
+      color: '#FFFFFF',
       fontSize: 16,
       fontWeight: '700',
     },

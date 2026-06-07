@@ -3,7 +3,9 @@ import { Stack } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
+import type { ColorPalette } from '../../constants/colors';
 
+/** Auth flow layout (login → register → initial-setup) with loading state. */
 export default function AuthLayout() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -32,7 +34,7 @@ export default function AuthLayout() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     loading: {
       flex: 1,

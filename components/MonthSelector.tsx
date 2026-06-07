@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { formatMonthYear } from '../utils/format';
+import type { ColorPalette } from '../constants/colors';
 
 interface MonthSelectorProps {
   month: number;
@@ -11,6 +12,7 @@ interface MonthSelectorProps {
   onNext: () => void;
 }
 
+/** Prev/next month navigation with a formatted label. */
 export default function MonthSelector({
   month,
   year,
@@ -43,7 +45,7 @@ export default function MonthSelector({
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flexDirection: 'row',

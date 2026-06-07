@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../hooks/useTheme';
+import type { ColorPalette } from '../../constants/colors';
 import { useSession } from '../../hooks/useSession';
 import {
   getReglesBudget,
@@ -48,6 +49,7 @@ const themeOptions: { label: string; value: ThemePreference; icon: string }[] = 
   { label: 'Système', value: 'system', icon: 'settings' },
 ];
 
+/** Parametres screen with settings, rules and account management. */
 export default function ParametresScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -978,7 +980,7 @@ export default function ParametresScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,

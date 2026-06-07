@@ -34,10 +34,12 @@ import EmptyState from '../../components/EmptyState';
 import TransactionItem from '../../components/TransactionItem';
 import { formatAr, formatMonthYear, formatDate, formatTime } from '../../utils/format';
 import { stockages } from '../../constants/categories';
-import type { StockageType, CourantTransaction, EpargneTransaction, Facture, UserCategory } from '../../types';
+import type { StockageType, CourantTransaction, EpargneTransaction, Facture, UserCategory, WeeklyBreakdown } from '../../types';
 
 const screenWidth = Dimensions.get('window').width;
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Dashboard screen with overview of accounts, transactions and charts. */
 export default function DashboardScreen() {
   const { user } = useSession();
   const { colors } = useTheme();
@@ -62,6 +64,7 @@ export default function DashboardScreen() {
   const [monthlyEntrees, setMonthlyEntrees] = useState(0);
   const [monthlySorties, setMonthlySorties] = useState(0);
   const [reportCourant, setReportCourant] = useState(0);
+  const [weekData, setWeekData] = useState<WeeklyBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<UserCategory[]>([]);
 
@@ -79,18 +82,20 @@ export default function DashboardScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [soldeC, soldeE, allTx, prevReport, bills, cats] = await Promise.all([
+      const [soldeC, soldeE, allTx, prevReport, bills, cats, weeklyData] = await Promise.all([
         courant.getSoldeByStockage(),
         epargne.getSolde(),
         courant.getAllTransactions(month, year),
         rapport.getPreviousMonthSolde(month, year),
         factures.getFactures(),
         getCategories(userId),
+        rapport.getWeeklyBreakdown(month, year),
       ]);
 
       setSoldeCourant(soldeC);
       setSoldeEpargne(soldeE);
       setReportCourant(prevReport.courant);
+      setWeekData(weeklyData);
       setRecentTx(allTx.slice(0, 5));
       setCategories(cats);
       setUrgentFactures(
@@ -98,7 +103,7 @@ export default function DashboardScreen() {
           if (b.payee) return false;
           if (!b.date_echeance) return false;
           const diff = new Date(b.date_echeance).getTime() - Date.now();
-          return diff < 7 * 24 * 60 * 60 * 1000;
+          return diff < SEVEN_DAYS_MS;
         })
       );
 
@@ -147,7 +152,7 @@ export default function DashboardScreen() {
       const db = await dbModule.getDb();
       await db.runAsync(
         `INSERT INTO courant_transactions (user_id, type, stockage, montant, description, categorie, date)
-         VALUES (?, 'sortie', ?, ?, 'Transfert vers Épargne', 'Autre', ?)`,
+         VALUES (?, 'sortie', ?, ?, 'Transfert vers Épargne', 'Transfert', ?)`,
         userId,
         transferStockage,
         montant,
@@ -171,29 +176,23 @@ export default function DashboardScreen() {
     }
   };
 
-  const weekData = {
-    labels: ['S1', 'S2', 'S3', 'S4', 'S5'],
+  const chartLabels = weekData.length > 0
+    ? weekData.map((w) => `S${w.week}`)
+    : ['S1', 'S2', 'S3', 'S4', 'S5'];
+
+  const chartEntrees = weekData.length > 0
+    ? weekData.map((w) => w.entrees)
+    : [0, 0, 0, 0, 0];
+
+  const chartSorties = weekData.length > 0
+    ? weekData.map((w) => w.sorties)
+    : [0, 0, 0, 0, 0];
+
+  const chartData = {
+    labels: chartLabels,
     datasets: [
-      {
-        data: [
-          monthlyEntrees * 0.25,
-          monthlyEntrees * 0.3,
-          monthlyEntrees * 0.2,
-          monthlyEntrees * 0.15,
-          monthlyEntrees * 0.1,
-        ],
-        color: () => colors.entree,
-      },
-      {
-        data: [
-          monthlySorties * 0.2,
-          monthlySorties * 0.35,
-          monthlySorties * 0.15,
-          monthlySorties * 0.2,
-          monthlySorties * 0.1,
-        ],
-        color: () => colors.sortie,
-      },
+      { data: chartEntrees, color: () => colors.entree },
+      { data: chartSorties, color: () => colors.sortie },
     ],
     legend: ['Entrées', 'Sorties'],
   };
@@ -210,7 +209,7 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Image source={require('../../assets/mon_argent_logo.png')} style={styles.logo} />
+          <Image source={require('../../assets/icon.png')} style={styles.logo} />
           <View>
             <Text style={styles.greeting}>Bonjour, {user?.username}</Text>
             <Text style={styles.subtitle}>{formatMonthYear(month, year)}</Text>
@@ -283,21 +282,23 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Entrées vs Sorties par semaine</Text>
           {monthlyEntrees > 0 || monthlySorties > 0 ? (
             <BarChart
-              data={weekData}
+              data={chartData}
               width={screenWidth - 48}
               height={200}
               yAxisLabel=""
               yAxisSuffix=""
               chartConfig={{
                 backgroundColor: colors.card,
-                backgroundGradientFrom: colors.card,
+                backgroundGradientFrom: colors.surface,
                 backgroundGradientTo: colors.card,
                 decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                color: (opacity = 1) => `rgba(${parseInt(colors.text.slice(1,3),16)}, ${parseInt(colors.text.slice(3,5),16)}, ${parseInt(colors.text.slice(5,7),16)}, ${opacity})`,
                 labelColor: () => colors.textSec,
                 propsForBackgroundLines: {
                   stroke: colors.border,
+                  strokeWidth: 0.5,
                 },
+                propsForLabels: { fontSize: 11, fontWeight: '500' },
                 barPercentage: 0.6,
               }}
               style={styles.chart}
@@ -306,7 +307,7 @@ export default function DashboardScreen() {
               fromZero
             />
           ) : (
-            <EmptyState emoji="📊" message="Aucune transaction ce mois-ci" />
+            <EmptyState iconName="bar-chart-outline" message="Aucune transaction ce mois-ci" />
           )}
         </View>
 
@@ -320,9 +321,10 @@ export default function DashboardScreen() {
 
         {urgentFactures.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              📄 Factures urgentes ({urgentFactures.length})
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              <Ionicons name="document-text-outline" size={16} color={colors.warning} />
+              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Factures urgentes ({urgentFactures.length})</Text>
+            </View>
             {urgentFactures.map((f) => {
               const isOverdue =
                 f.date_echeance && new Date(f.date_echeance) < new Date();
@@ -357,7 +359,7 @@ export default function DashboardScreen() {
               <TransactionItem key={tx.id} item={tx} index={i} categoryMap={categoryMap} onPress={setDetailItem} />
             ))
           ) : (
-            <EmptyState emoji="📭" message="Aucune transaction récente" />
+            <EmptyState iconName="mail-open-outline" message="Aucune transaction récente" />
           )}
         </View>
       </ScrollView>
@@ -498,6 +500,7 @@ function createStyles(c: ColorPalette) {
       paddingBottom: 32,
     },
     header: {
+      backgroundColor: c.surface,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',

@@ -1,9 +1,13 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import type { ColorPalette } from '../constants/colors';
 
 interface EmptyStateProps {
   emoji?: string;
+  iconName?: string;
+  iconColor?: string;
   message: string;
   actionLabel?: string;
   onAction?: () => void;
@@ -11,6 +15,8 @@ interface EmptyStateProps {
 
 export default function EmptyState({
   emoji = '📭',
+  iconName,
+  iconColor,
   message,
   actionLabel,
   onAction,
@@ -19,7 +25,11 @@ export default function EmptyState({
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.container}>
-      <Text style={styles.emoji}>{emoji}</Text>
+      {iconName ? (
+        <Ionicons name={iconName as any} size={64} color={iconColor ?? colors.textMuted} />
+      ) : (
+        <Text style={styles.emoji}>{emoji}</Text>
+      )}
       <Text style={styles.message}>{message}</Text>
       {actionLabel && onAction && (
         <TouchableOpacity style={styles.button} onPress={onAction}>
@@ -30,7 +40,7 @@ export default function EmptyState({
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -56,7 +66,7 @@ function createStyles(c: Record<string, any>) {
       borderRadius: 8,
     },
     buttonText: {
-      color: c.text,
+      color: '#FFFFFF',
       fontSize: 14,
       fontWeight: '600',
     },

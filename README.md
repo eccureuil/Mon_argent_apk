@@ -1,4 +1,4 @@
-# Mon Argent
+# <img src="./assets/icon.png" width="36" height="36" style="vertical-align: middle; border-radius: 8px;" /> Mon Argent
 
 Gestion de finances personnelles 100 % hors-ligne. Suivi multi-comptes (Espèces, Mobile Money, Banque),
 épargne, factures avec notifications configurables, catégories personnalisables, graphiques analytiques

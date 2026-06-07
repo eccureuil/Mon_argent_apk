@@ -23,6 +23,7 @@ function resolveTheme(pref: ThemePreference, systemScheme: 'dark' | 'light'): Th
   return pref;
 }
 
+/** Provides the current theme palette and toggle/set controls via context. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>('dark');
@@ -40,6 +41,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const theme = resolveTheme(themePreference, systemScheme ?? 'dark');
 
+  /** Persist a specific theme preference. */
   const setTheme = useCallback(async (t: ThemePreference) => {
     setThemePreferenceState(t);
     try {
@@ -47,6 +49,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, []);
 
+  /** Cycle through system → dark → light → system. */
   const toggleTheme = useCallback(async () => {
     const order: ThemePreference[] = ['system', 'dark', 'light'];
     const idx = order.indexOf(themePreference);
@@ -72,6 +75,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Hook to access the current theme and toggle/set controls. */
 export function useTheme(): ThemeContextType {
   const ctx = useContext(ThemeContext);
   if (!ctx) {

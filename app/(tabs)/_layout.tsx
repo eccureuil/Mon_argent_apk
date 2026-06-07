@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
+import type { ColorPalette } from '../../constants/colors';
 
 const tabIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   index: 'home',
@@ -15,6 +16,7 @@ const tabIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   factures: 'document-text',
 };
 
+/** Main tab layout with 6 tabs, auth guard, and setup check. */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -103,7 +105,7 @@ export default function TabsLayout() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     loading: {
       flex: 1,

@@ -21,6 +21,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
 import { getDb } from '../../database/db';
 import type { StockageType } from '../../types';
+import type { ColorPalette } from '../../constants/colors';
 
 const stockageFields: { key: StockageType; label: string; icon: string }[] = [
   { key: 'espece', label: 'Espèces', icon: 'cash' },
@@ -28,6 +29,7 @@ const stockageFields: { key: StockageType; label: string; icon: string }[] = [
   { key: 'banque', label: 'Banque', icon: 'business' },
 ];
 
+/** Initial setup wizard for entering starting balances after registration. */
 export default function InitialSetupScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -114,7 +116,7 @@ export default function InitialSetupScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.logo}>💰</Text>
+          <Ionicons name="cash-outline" size={64} color={colors.primary} style={styles.logo} />
           <Text style={styles.title}>Bienvenue !</Text>
           <Text style={styles.subtitle}>
             Entrez vos soldes initiaux pour commencer
@@ -201,7 +203,7 @@ export default function InitialSetupScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,

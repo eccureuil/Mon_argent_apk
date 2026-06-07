@@ -3,6 +3,11 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AppState, Text } from 'react-native';
 import * as Updates from 'expo-updates';
+import * as SplashScreen from 'expo-splash-screen';
+import GradientBg from '../components/GradientBg';
+
+SplashScreen.preventAutoHideAsync();
+const SPLASH_TIMEOUT_MS = 5000;
 import {
   useFonts,
   IBMPlexSans_400Regular,
@@ -118,6 +123,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) {
       (Text as any).defaultProps = { style: { fontFamily: 'IBMPlexSans_400Regular' } };
+      const timer = setTimeout(() => {
+        SplashScreen.hideAsync();
+      }, SPLASH_TIMEOUT_MS);
+      return () => clearTimeout(timer);
     }
   }, [fontsLoaded]);
 
@@ -128,10 +137,12 @@ export default function RootLayout() {
       <ThemeProvider>
         <OtaUpdater />
         <ThemedStatusBar />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <GradientBg>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </GradientBg>
       </ThemeProvider>
     </SessionProvider>
   );

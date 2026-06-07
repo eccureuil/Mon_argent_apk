@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import type { ColorPalette } from '../constants/colors';
 
 const ICONS = [
   'briefcase', 'laptop', 'cart', 'cash', 'cash-back', 'card',
@@ -20,6 +21,7 @@ interface IconPickerProps {
   onSelect: (icon: string) => void;
 }
 
+/** A scrollable grid of Ionicons for selecting a category icon. */
 export default function IconPicker({ selected, onSelect }: IconPickerProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -37,7 +39,7 @@ export default function IconPicker({ selected, onSelect }: IconPickerProps) {
               activeOpacity={0.7}
             >
               <Ionicons
-                name={icon as any}
+                name={icon as keyof typeof Ionicons.glyphMap}
                 size={22}
                 color={isSelected ? colors.text : colors.textSec}
               />
@@ -49,7 +51,7 @@ export default function IconPicker({ selected, onSelect }: IconPickerProps) {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       maxHeight: 200,

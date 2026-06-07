@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FlashList } from '@shopify/flash-list';
 import { useTheme } from '../../hooks/useTheme';
+import type { ColorPalette } from '../../constants/colors';
 import { useSession } from '../../hooks/useSession';
 import { useEpargne } from '../../hooks/useEpargne';
 import { useCourant } from '../../hooks/useCourant';
@@ -30,6 +31,7 @@ import { formatAr, formatDate, formatTime } from '../../utils/format';
 import { stockageLabels, stockages } from '../../constants/categories';
 import type { EpargneTransaction, TransactionType, StockageType } from '../../types';
 
+/** Epargne screen with savings transactions and balance. */
 export default function EpargneScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -108,7 +110,7 @@ export default function EpargneScreen() {
       if (txType === 'sortie' && retraitDestination === 'courant') {
         await addTransaction('sortie', montant, txDate.toISOString(), txDescription.trim() || undefined);
         const destLabel = stockageLabels[destStockage];
-        await addCourantTransaction('entree', destStockage, montant, 'Autre', txDate.toISOString(), `Transfert depuis Épargne (${destLabel})`);
+        await addCourantTransaction('entree', destStockage, montant, 'Transfert', txDate.toISOString(), `Transfert depuis Épargne (${destLabel})`);
       } else {
         await addTransaction(
           txType,
@@ -126,7 +128,7 @@ export default function EpargneScreen() {
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (item: EpargneTransaction) => {
     Alert.alert('Confirmer', 'Supprimer cette transaction ?', [
       { text: 'Annuler', style: 'cancel' },
       {
@@ -134,7 +136,7 @@ export default function EpargneScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteTransaction(id);
+            await deleteTransaction(item.id);
             loadData();
           } catch {
             Alert.alert('Erreur', 'Impossible de supprimer');
@@ -223,7 +225,7 @@ export default function EpargneScreen() {
         )}
         keyExtractor={(item) => item.id.toString()}
         ListEmptyComponent={
-          <EmptyState emoji="🏦" message="Aucune transaction d'épargne ce mois-ci" />
+          <EmptyState iconName="wallet-outline" message="Aucune transaction d'épargne ce mois-ci" />
         }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.epargne} />
@@ -407,7 +409,7 @@ export default function EpargneScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,

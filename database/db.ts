@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 
 let db: SQLite.SQLiteDatabase | null = null;
 
+/** Get or initialize the SQLite database singleton. */
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
     db = await SQLite.openDatabaseAsync('mon_argent.db');
@@ -10,6 +11,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
+/** Create all 7 tables if they do not exist, with migration for added columns. */
 async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS users (
@@ -62,7 +64,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       payee BOOLEAN DEFAULT 0,
       date_paiement TEXT,
       courant_transaction_id INTEGER,
-      notif_sent BOOLEAN DEFAULT 0,
+      notif_state INTEGER DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
@@ -103,8 +105,14 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('ALTER TABLE factures ADD COLUMN recurrence TEXT');
   } catch {
   }
+
+  try {
+    await database.execAsync('ALTER TABLE factures ADD COLUMN notif_state INTEGER DEFAULT 0');
+  } catch {
+  }
 }
 
+/** Drop all 7 tables and reset the database singleton (dev use only). */
 export async function resetDatabase(): Promise<void> {
   if (db) {
     await db.execAsync(`
@@ -114,6 +122,7 @@ export async function resetDatabase(): Promise<void> {
       DROP TABLE IF EXISTS sessions;
       DROP TABLE IF EXISTS parametres;
       DROP TABLE IF EXISTS regles_budget;
+      DROP TABLE IF EXISTS user_categories;
       DROP TABLE IF EXISTS users;
     `);
     db = null;

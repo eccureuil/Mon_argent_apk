@@ -9,6 +9,7 @@ export const courantCategories = [
   { value: 'Santé', label: 'Santé', icon: 'medkit' },
   { value: 'Loisirs', label: 'Loisirs', icon: 'game-controller' },
   { value: 'Facture', label: 'Facture', icon: 'document-text' },
+  { value: 'Transfert', label: 'Transfert', icon: 'swap-horizontal' },
   { value: 'Autre', label: 'Autre', icon: 'ellipsis-horizontal' },
 ] as const;
 

@@ -1,6 +1,7 @@
 import { getDb } from '../database/db';
 import type { RegleBudget, StockageType } from '../types';
 
+/** Get a setting value by key for the given user. */
 export async function getParametre(
   userId: number,
   cle: string
@@ -14,6 +15,7 @@ export async function getParametre(
   return row?.valeur ?? null;
 }
 
+/** Upsert a key-value setting for the given user. */
 export async function setParametre(
   userId: number,
   cle: string,
@@ -28,6 +30,7 @@ export async function setParametre(
   );
 }
 
+/** Get all budget rules for the user. */
 export async function getReglesBudget(
   userId: number
 ): Promise<RegleBudget[]> {
@@ -39,6 +42,7 @@ export async function getReglesBudget(
   return rows.map((r) => ({ ...r, periode: r.periode as 'mensuel' | 'hebdomadaire' }));
 }
 
+/** Create or replace a budget rule for a category. */
 export async function upsertRegleBudget(
   userId: number,
   categorie: string,
@@ -55,6 +59,7 @@ export async function upsertRegleBudget(
   );
 }
 
+/** Delete a budget rule by id (scoped to user). */
 export async function deleteRegleBudget(
   userId: number,
   id: number
@@ -67,6 +72,7 @@ export async function deleteRegleBudget(
   );
 }
 
+/** Check if spending for a category has exceeded the budget rule limit. */
 export async function checkBudgetAlert(
   userId: number,
   categorie: string,
@@ -86,24 +92,20 @@ export async function checkBudgetAlert(
   if (!rule) return null;
 
   const now = new Date();
-  let dateFilter: string;
-  if (rule.periode === 'mensuel') {
-    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    dateFilter = `strftime('%Y-%m', date) = '${monthStr}'`;
-  } else {
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
-    const weekStartStr = weekStart.toISOString().split('T')[0];
-    dateFilter = `date >= '${weekStartStr}'`;
-  }
-
-  const stockageFilter = stockage ? ` AND stockage = '${stockage}'` : '';
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+  const weekStartStr = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString().split('T')[0];
+  const dateParam = rule.periode === 'mensuel' ? monthStr : weekStartStr;
+  const params: (string | number)[] = [userId, categorie, dateParam];
+  if (stockage) params.push(stockage);
 
   const row = await db.getFirstAsync<{ total: number }>(
     `SELECT COALESCE(SUM(montant), 0) as total FROM courant_transactions
-     WHERE user_id = ? AND type = 'sortie' AND categorie = ? AND ${dateFilter}${stockageFilter}`,
-    userId,
-    categorie
+     WHERE user_id = ? AND type = 'sortie' AND categorie = ?
+     AND ${rule.periode === 'mensuel' ? "strftime('%Y-%m', date) = ?" : "date >= ?"}
+     ${stockage ? 'AND stockage = ?' : ''}`,
+    ...params
   );
 
   const depense = row?.total ?? 0;

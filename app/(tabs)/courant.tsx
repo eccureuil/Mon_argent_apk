@@ -21,6 +21,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { FlashList } from '@shopify/flash-list';
 import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../hooks/useTheme';
+import type { ColorPalette } from '../../constants/colors';
 import { useSession } from '../../hooks/useSession';
 import { useCourant } from '../../hooks/useCourant';
 import { checkBudgetAlert } from '../../hooks/useParametres';
@@ -32,13 +33,14 @@ import { formatAr, formatDate, formatTime } from '../../utils/format';
 import { stockageLabels, stockages } from '../../constants/categories';
 import type { StockageType, CourantTransaction, TransactionType, UserCategory } from '../../types';
 
+/** Courant screen with daily transactions per wallet. */
 export default function CourantScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useSession();
   const userId = user!.id;
   const insets = useSafeAreaInsets();
-  const { getSoldeByStockage, getTransactions, addTransaction, deleteTransaction } =
+  const { getSoldeByStockage, getTransactions, addTransaction, deleteTransaction, getTransferPair } =
     useCourant(userId);
 
   const now = new Date();
@@ -59,6 +61,7 @@ export default function CourantScreen() {
   const [txCategorie, setTxCategorie] = useState('');
   const [txDate, setTxDate] = useState(now);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [transferModalVisible, setTransferModalVisible] = useState(false);
@@ -159,12 +162,12 @@ export default function CourantScreen() {
           const catLabel = categories.find((c) => c.value === txCategorie)?.label ?? txCategorie;
           if (alert.depasse) {
             Alert.alert(
-              '⚠️ Plafond dépassé',
+              'Plafond dépassé',
               `Vous avez dépassé votre règle budgétaire pour ${catLabel}.\nDépensé ce mois : ${formatAr(alert.depense)} / Plafond : ${formatAr(alert.max)}`
             );
           } else if (alert.pourcentage >= 80) {
             Alert.alert(
-              '💡 Attention budget',
+              'Attention budget',
               `Vous avez utilisé ${alert.pourcentage}% de votre budget ${catLabel} ce mois.`
             );
           }
@@ -210,12 +213,12 @@ export default function CourantScreen() {
       const now = new Date().toISOString();
       const sourceLabel = stockageLabels[transferSource];
       const destLabel = stockageLabels[transferDest];
+      const sortieDesc = frais > 0
+        ? `Transfert vers ${destLabel} + frais de transaction`
+        : `Transfert vers ${destLabel}`;
 
-      await addTransaction('sortie', transferSource, montant, 'Autre', now, `Transfert vers ${destLabel}`);
-      await addTransaction('entree', transferDest, montant, 'Autre', now, `Transfert depuis ${sourceLabel}`);
-      if (frais > 0) {
-        await addTransaction('sortie', transferSource, frais, 'Autre', now, `Frais transfert vers ${destLabel}`);
-      }
+      await addTransaction('sortie', transferSource, montant + frais, 'Transfert', now, sortieDesc);
+      await addTransaction('entree', transferDest, montant, 'Transfert', now, `Transfert depuis ${sourceLabel}`);
       setTransferModalVisible(false);
       loadData(selectedDate);
     } catch (err) {
@@ -225,7 +228,30 @@ export default function CourantScreen() {
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (item: CourantTransaction) => {
+    if (item.source === 'facture') {
+      Alert.alert('Opération impossible', "Cette transaction provient d'une facture et ne peut pas être supprimée directement.");
+      return;
+    }
+    const pair = item.categorie === 'Transfert' ? await getTransferPair(item.id) : null;
+    if (pair) {
+      Alert.alert('Confirmer', `Cette transaction fait partie d'un transfert. Cela supprime aussi la transaction dans ${pair.cible}.`, [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Tout supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await Promise.all([deleteTransaction(item.id), deleteTransaction(pair.id)]);
+              loadData(selectedDate);
+            } catch (err) {
+              Alert.alert('Erreur', 'Impossible de supprimer');
+            }
+          },
+        },
+      ]);
+      return;
+    }
     Alert.alert('Confirmer', 'Supprimer cette transaction ?', [
       { text: 'Annuler', style: 'cancel' },
       {
@@ -233,7 +259,7 @@ export default function CourantScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteTransaction(id);
+            await deleteTransaction(item.id);
             loadData(selectedDate);
           } catch (err) {
             Alert.alert('Erreur', 'Impossible de supprimer');
@@ -369,12 +395,12 @@ export default function CourantScreen() {
       <FlashList
         data={dayTransactions}
         renderItem={({ item, index }) => (
-          <TransactionItem item={item} index={index} categoryMap={categoryMap} onPress={(item) => setDetailItem(item as CourantTransaction)} onDelete={handleDelete} />
+          <TransactionItem item={item} index={index} categoryMap={categoryMap} onPress={(item) => setDetailItem(item as CourantTransaction)} onDelete={(i) => handleDelete(i as CourantTransaction)} />
         )}
         keyExtractor={(item) => item.id.toString()}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
-          <EmptyState emoji="💳" message="Aucune transaction ce jour" />
+          <EmptyState iconName="card-outline" message="Aucune transaction ce jour" />
         }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -460,6 +486,9 @@ export default function CourantScreen() {
                     month: 'long',
                     year: 'numeric',
                   })}
+                  {txDate.toDateString() !== now.toDateString()
+                    ? ` à ${txDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                    : ''}
                 </Text>
               </TouchableOpacity>
               {showDatePicker && (
@@ -467,9 +496,35 @@ export default function CourantScreen() {
                   value={txDate}
                   mode="date"
                   display="default"
+                  maximumDate={now}
                   onChange={(_, d) => {
                     setShowDatePicker(false);
-                    if (d) setTxDate(d);
+                    if (d) {
+                      setTxDate(d);
+                      const today = new Date();
+                      if (
+                        d.getDate() !== today.getDate() ||
+                        d.getMonth() !== today.getMonth() ||
+                        d.getFullYear() !== today.getFullYear()
+                      ) {
+                        setTimeout(() => setShowTimePicker(true), 200);
+                      }
+                    }
+                  }}
+                />
+              )}
+              {showTimePicker && (
+                <DateTimePicker
+                  value={txDate}
+                  mode="time"
+                  display="default"
+                  onChange={(_, t) => {
+                    setShowTimePicker(false);
+                    if (t) {
+                      const updated = new Date(txDate);
+                      updated.setHours(t.getHours(), t.getMinutes(), 0, 0);
+                      setTxDate(updated);
+                    }
                   }}
                 />
               )}
@@ -672,7 +727,7 @@ export default function CourantScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,

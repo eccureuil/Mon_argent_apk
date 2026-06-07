@@ -20,7 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useSession } from '../../hooks/useSession';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { ColorPalette } from '../../constants/colors';
 
+/** Login form with username/password validation and session creation. */
 export default function LoginScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -76,7 +78,7 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Image source={require('../../assets/mon_argent_logo.png')} style={styles.logo} />
+          <Image source={require('../../assets/icon.png')} style={styles.logo} />
           <Text style={styles.title}>Mon Argent</Text>
           <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
 
@@ -144,7 +146,7 @@ export default function LoginScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -220,7 +222,7 @@ function createStyles(c: Record<string, any>) {
       opacity: 0.6,
     },
     buttonText: {
-      color: c.text,
+      color: '#FFFFFF',
       fontSize: 16,
       fontWeight: '700',
     },

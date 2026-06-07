@@ -12,6 +12,7 @@ function slugify(label: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/** Seed default courant and facture categories for a new user if none exist. */
 export async function seedDefaultCategories(userId: number): Promise<void> {
   const db = await getDb();
   const existing = await db.getFirstAsync<{ count: number }>(
@@ -62,6 +63,7 @@ export async function seedDefaultCategories(userId: number): Promise<void> {
   }
 }
 
+/** Get all user categories, optionally filtered by type. */
 export async function getCategories(
   userId: number,
   type?: string
@@ -83,6 +85,7 @@ export async function getCategories(
   return rows;
 }
 
+/** Add a custom category for the user. */
 export async function addCategory(
   userId: number,
   label: string,
@@ -108,6 +111,7 @@ export async function addCategory(
   return result.lastInsertRowId as number;
 }
 
+/** Update an existing category's label, icon, color, or type. */
 export async function updateCategory(
   id: number,
   data: { label?: string; icon?: string; color?: string; type?: string }
@@ -124,6 +128,7 @@ export async function updateCategory(
   await db.runAsync(`UPDATE user_categories SET ${sets.join(', ')} WHERE id = ?`, params);
 }
 
+/** Delete a category and reassign its transactions to 'Autre'. */
 export async function deleteCategory(userId: number, id: number): Promise<void> {
   const db = await getDb();
   const cat = await db.getFirstAsync<UserCategory>(

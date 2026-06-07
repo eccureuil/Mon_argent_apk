@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../hooks/useTheme';
+import type { ColorPalette } from '../../constants/colors';
 import { useSession } from '../../hooks/useSession';
 import { CATEGORY_COLORS } from '../../constants/colors';
 import {
@@ -42,6 +43,7 @@ const FILTER_OPTIONS = [
   { value: 'facture', label: 'Facture' },
 ];
 
+/** Categories screen to create/edit/delete transaction categories. */
 export default function CategoriesScreen() {
   const { colors } = useTheme();
   const { user } = useSession();
@@ -169,7 +171,7 @@ export default function CategoriesScreen() {
         {filtered.map((cat) => (
           <View key={cat.id} style={styles.card}>
             <View style={[styles.iconCircle, { backgroundColor: cat.color + '20' }]}>
-              <Ionicons name={cat.icon as any} size={20} color={cat.color} />
+              <Ionicons name={cat.icon as keyof typeof Ionicons.glyphMap} size={20} color={cat.color} />
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardLabel}>{cat.label}</Text>
@@ -276,7 +278,7 @@ export default function CategoriesScreen() {
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flex: 1,

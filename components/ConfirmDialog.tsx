@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
+import type { ColorPalette } from '../constants/colors';
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -21,6 +22,7 @@ interface ConfirmDialogProps {
   children?: React.ReactNode;
 }
 
+/** A modal confirmation dialog with title, message, and two action buttons. */
 export default function ConfirmDialog({
   visible,
   title,
@@ -71,7 +73,7 @@ export default function ConfirmDialog({
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

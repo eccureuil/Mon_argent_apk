@@ -4,6 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { formatAr, formatDate, formatTime, truncate } from '../utils/format';
+import type { ColorPalette } from '../constants/colors';
 import type { CourantTransaction, EpargneTransaction } from '../types';
 
 type Transaction = CourantTransaction | EpargneTransaction;
@@ -13,13 +14,14 @@ interface TransactionItemProps {
   index: number;
   categoryMap?: Record<string, { icon: string; color: string }>;
   onPress?: (item: Transaction) => void;
-  onDelete?: (id: number) => void;
+  onDelete?: (item: Transaction) => void;
 }
 
 function isCourant(tx: Transaction): tx is CourantTransaction {
   return 'stockage' in tx && 'source' in tx;
 }
 
+/** A single transaction row with icon, category, amount, and date. */
 export default function TransactionItem({ item, index, categoryMap, onPress, onDelete }: TransactionItemProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -33,12 +35,12 @@ export default function TransactionItem({ item, index, categoryMap, onPress, onD
     <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
       <TouchableOpacity
         onPress={() => onPress?.(item)}
-        onLongPress={() => onDelete?.(item.id)}
+        onLongPress={() => onDelete?.(item)}
         activeOpacity={0.7}
         style={styles.container}
       >
         <View style={[styles.iconCircle, isEntree ? styles.entreeBg : styles.sortieBg]}>
-          <Ionicons name={iconName as any} size={18} color={colors.text} />
+          <Ionicons name={iconName as keyof typeof Ionicons.glyphMap} size={18} color={colors.text} />
         </View>
         <View style={styles.content}>
           <View style={styles.topRow}>
@@ -74,7 +76,7 @@ export default function TransactionItem({ item, index, categoryMap, onPress, onD
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flexDirection: 'row',

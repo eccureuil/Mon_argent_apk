@@ -4,6 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { stockages } from '../constants/categories';
+import type { ColorPalette } from '../constants/colors';
 import type { StockageType } from '../types';
 
 interface StockageTabsProps {
@@ -17,6 +18,7 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   banque: 'business',
 };
 
+/** Tab bar to switch between the three wallets (espèce / mobile money / banque). */
 export default function StockageTabs({ selected, onSelect }: StockageTabsProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -47,7 +49,7 @@ export default function StockageTabs({ selected, onSelect }: StockageTabsProps) 
   );
 }
 
-function createStyles(c: Record<string, any>) {
+function createStyles(c: ColorPalette) {
   return StyleSheet.create({
     container: {
       flexDirection: 'row',
