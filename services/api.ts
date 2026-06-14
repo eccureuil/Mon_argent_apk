@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 const API_BASE_KEY = 'api_base_url';
-const DEFAULT_API_URL = 'http://localhost:4000/api';
+const DEFAULT_API_URL = 'https://mon-argent-apk.onrender.com/api';
 
 function getApiUrl(): string {
   if (__DEV__) {
