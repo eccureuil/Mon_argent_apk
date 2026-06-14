@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BarChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
+import { api } from '../../services/api';
 import { useTheme } from '../../hooks/useTheme';
 import type { ColorPalette } from '../../constants/colors';
 import { useSession } from '../../hooks/useSession';
@@ -147,24 +148,11 @@ export default function DashboardScreen() {
 
     setTransferring(true);
     try {
-      const nowStr = new Date().toISOString();
-      const dbModule = await import('../../database/db');
-      const db = await dbModule.getDb();
-      await db.runAsync(
-        `INSERT INTO courant_transactions (user_id, type, stockage, montant, description, categorie, date)
-         VALUES (?, 'sortie', ?, ?, 'Transfert vers Épargne', 'Transfert', ?)`,
-        userId,
-        transferStockage,
+      const res = await api.post('/courant/transfer-to-epargne', {
+        stockage: transferStockage,
         montant,
-        nowStr
-      );
-      await db.runAsync(
-        `INSERT INTO epargne_transactions (user_id, type, montant, description, date)
-         VALUES (?, 'entree', ?, 'Transfert depuis Courant', ?)`,
-        userId,
-        montant,
-        nowStr
-      );
+      });
+      if (!res.ok) throw new Error('API error');
       setTransferModal(false);
       setTransferMontant('');
       Alert.alert('Succès', `Transfert de ${formatAr(montant)} vers l'Épargne effectué`);

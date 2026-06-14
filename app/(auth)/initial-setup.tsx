@@ -18,8 +18,8 @@ import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
+import { api } from '../../services/api';
 import { useSession } from '../../hooks/useSession';
-import { getDb } from '../../database/db';
 import type { StockageType } from '../../types';
 import type { ColorPalette } from '../../constants/colors';
 
@@ -66,31 +66,14 @@ export default function InitialSetupScreen() {
 
     setSaving(true);
     try {
-      const db = await getDb();
-      const now = new Date().toISOString();
+      const res = await api.post('/initial-setup', {
+        espece: values[0].montant,
+        mobile_money: values[1].montant,
+        banque: values[2].montant,
+        epargne: epargneMontant,
+      });
 
-      for (const v of values) {
-        if (v.montant > 0) {
-          await db.runAsync(
-            `INSERT INTO courant_transactions (user_id, type, stockage, montant, description, categorie, date)
-             VALUES (?, 'entree', ?, ?, 'Solde initial', 'Autre', ?)`,
-            userId,
-            v.stockage,
-            v.montant,
-            now
-          );
-        }
-      }
-
-      if (epargneMontant > 0) {
-        await db.runAsync(
-          `INSERT INTO epargne_transactions (user_id, type, montant, description, date)
-           VALUES (?, 'entree', ?, 'Solde initial', ?)`,
-          userId,
-          epargneMontant,
-          now
-        );
-      }
+      if (!res.ok) throw new Error(res.data.error);
 
       await SecureStore.setItemAsync('setup_done', 'true');
       router.replace('/(tabs)');

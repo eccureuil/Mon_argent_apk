@@ -1,104 +1,31 @@
 import * as SecureStore from 'expo-secure-store';
-import * as Crypto from 'expo-crypto';
+import { api, storeToken, clearToken } from '../services/api';
 import { getDb } from './db';
 import type { User } from '../types';
 
 const SESSION_KEY = 'session_token';
 
-/** Register a new user and create a session token stored in SecureStore. */
-export async function registerAndLoginUser(
-  username: string,
-  password: string
-): Promise<{ user: User; token: string }> {
-  const db = await getDb();
-  const hash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    password
-  );
-
-  let userId: number;
-  try {
-    const result = await db.runAsync(
-      'INSERT INTO users (username, password_hash) VALUES (?, ?)',
-      username,
-      hash
-    );
-    userId = result.lastInsertRowId;
-  } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('UNIQUE')) {
-      throw new Error('Nom d\'utilisateur déjà pris');
-    }
-    throw err;
-  }
-
-  const user = await db.getFirstAsync<User>(
-    'SELECT * FROM users WHERE id = ?',
-    userId
-  );
-  if (!user) throw new Error('Erreur lors de la création du compte');
-
-  const token = Crypto.randomUUID();
-  await db.runAsync(
-    'INSERT INTO sessions (user_id, token) VALUES (?, ?)',
-    userId,
-    token
-  );
-  await SecureStore.setItemAsync(SESSION_KEY, token);
-
-  return { user, token };
+interface AuthResponse {
+  user: User;
+  token: string;
 }
 
-/** Authenticate existing user and create a new session token. */
-export async function loginUser(
-  username: string,
-  password: string
-): Promise<{ user: User; token: string }> {
+async function cacheUser(user: User): Promise<void> {
   const db = await getDb();
-  const hash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    password
-  );
-
-  const user = await db.getFirstAsync<User>(
-    'SELECT * FROM users WHERE username = ? AND password_hash = ?',
-    username,
-    hash
-  );
-
-  if (!user) {
-    throw new Error('Identifiant ou mot de passe incorrect');
-  }
-
-  const token = Crypto.randomUUID();
   await db.runAsync(
-    'INSERT INTO sessions (user_id, token) VALUES (?, ?)',
+    'INSERT OR REPLACE INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)',
     user.id,
-    token
+    user.username,
+    '',
+    user.created_at
   );
-  await SecureStore.setItemAsync(SESSION_KEY, token);
-
-  return { user, token };
 }
 
-/** Check the stored session token and return the associated User or null. */
-export async function validateSession(): Promise<User | null> {
+async function getCachedUser(): Promise<User | null> {
   try {
-    const token = await SecureStore.getItemAsync(SESSION_KEY);
-    if (!token) return null;
-
     const db = await getDb();
-    const result = await db.getFirstAsync<{ id: number; user_id: number; created_at: string }>(
-      'SELECT * FROM sessions WHERE token = ?',
-      token
-    );
-    if (!result) {
-      await SecureStore.deleteItemAsync(SESSION_KEY);
-      return null;
-    }
-
     const user = await db.getFirstAsync<User>(
-      'SELECT * FROM users WHERE id = ?',
-      result.user_id
+      'SELECT id, username, created_at FROM users WHERE id = (SELECT MAX(id) FROM users)'
     );
     return user ?? null;
   } catch {
@@ -106,68 +33,69 @@ export async function validateSession(): Promise<User | null> {
   }
 }
 
-/** Delete the session from DB and remove token from SecureStore. */
-export async function logoutUser(): Promise<void> {
+export async function registerAndLoginUser(
+  username: string,
+  password: string
+): Promise<{ user: User; token: string }> {
+  const res = await api.post<AuthResponse | { error: string }>('/auth/register', { username, password });
+  if (!res.ok) throw new Error((res.data as any).error || 'Erreur inscription');
+  const data = res.data as AuthResponse;
+  await storeToken(data.token);
+  await cacheUser(data.user);
+  return { user: data.user, token: data.token };
+}
+
+export async function loginUser(
+  username: string,
+  password: string
+): Promise<{ user: User; token: string }> {
+  const res = await api.post<AuthResponse | { error: string }>('/auth/login', { username, password });
+  if (!res.ok) throw new Error((res.data as any).error || 'Identifiant ou mot de passe incorrect');
+  const data = res.data as AuthResponse;
+  await storeToken(data.token);
+  await cacheUser(data.user);
+  return { user: data.user, token: data.token };
+}
+
+export async function validateSession(): Promise<User | null> {
   try {
     const token = await SecureStore.getItemAsync(SESSION_KEY);
-    if (token) {
-      const db = await getDb();
-      await db.runAsync('DELETE FROM sessions WHERE token = ?', token);
+    if (!token) return null;
+    const res = await api.get<{ user: User } | { error: string }>('/auth/me');
+    if (res.ok) {
+      const data = res.data as { user: User };
+      if (data.user) {
+        await cacheUser(data.user);
+        return data.user;
+      }
     }
-    await SecureStore.deleteItemAsync(SESSION_KEY);
-  } catch (err) {
-    console.error('Logout error:', err);
+    if (res.status === 401) {
+      await clearToken();
+      return null;
+    }
+    return getCachedUser();
+  } catch {
+    return getCachedUser();
   }
 }
 
-/** Update the user's username (throws if already taken). */
+export async function logoutUser(): Promise<void> {
+  await clearToken();
+}
+
 export async function updateUsername(
   userId: number,
   newUsername: string
 ): Promise<void> {
-  const db = await getDb();
-  try {
-    await db.runAsync(
-      'UPDATE users SET username = ? WHERE id = ?',
-      newUsername,
-      userId
-    );
-  } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('UNIQUE')) {
-      throw new Error('Nom d\'utilisateur déjà pris');
-    }
-    throw err;
-  }
+  const res = await api.put('/auth/username', { username: newUsername });
+  if (!res.ok) throw new Error(res.data.error || 'Erreur mise à jour');
 }
 
-/** Update the user's password after verifying the old password. */
 export async function updatePassword(
   userId: number,
   oldPassword: string,
   newPassword: string
 ): Promise<void> {
-  const db = await getDb();
-  const user = await db.getFirstAsync<User>(
-    'SELECT * FROM users WHERE id = ?',
-    userId
-  );
-  if (!user) throw new Error('Utilisateur introuvable');
-
-  const oldHash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    oldPassword
-  );
-  if (user.password_hash !== oldHash) {
-    throw new Error('Ancien mot de passe incorrect');
-  }
-
-  const newHash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    newPassword
-  );
-  await db.runAsync(
-    'UPDATE users SET password_hash = ? WHERE id = ?',
-    newHash,
-    userId
-  );
+  const res = await api.put('/auth/password', { oldPassword, newPassword });
+  if (!res.ok) throw new Error(res.data.error || 'Erreur mise à jour');
 }

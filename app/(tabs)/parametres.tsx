@@ -32,7 +32,7 @@ import {
   setParametre,
 } from '../../hooks/useParametres';
 import { getCategories } from '../../hooks/useCategories';
-import { resetDatabase, getDb } from '../../database/db';
+import { resetDatabase } from '../../database/db';
 import { logoutUser, updateUsername, updatePassword } from '../../database/userRepository';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { formatAr } from '../../utils/format';
@@ -118,7 +118,6 @@ export default function ParametresScreen() {
   }, [userId]);
 
   const syncNotifs = useCallback(async () => {
-    const db = await getDb();
     if (notifRappels) {
       await scheduleDailySummary(userId, notifHeure, notifMinute);
     } else {
