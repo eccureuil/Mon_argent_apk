@@ -36,6 +36,7 @@ import { resetDatabase } from '../../database/db';
 import { logoutUser, updateUsername, updatePassword } from '../../database/userRepository';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { formatAr } from '../../utils/format';
+import { importLocalData } from '../../services/migration';
 import type { RegleBudget, ThemePreference, UserCategory } from '../../types';
 import {
   cancelAllScheduled,
@@ -65,6 +66,8 @@ export default function ParametresScreen() {
 
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [resetVisible, setResetVisible] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [migrateProgress, setMigrateProgress] = useState({ current: 0, total: 0, label: '' });
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editRule, setEditRule] = useState<RegleBudget | null>(null);
@@ -200,6 +203,34 @@ export default function ParametresScreen() {
     await resetDatabase();
     await logoutUser();
     await logout();
+  };
+
+  const handleImport = async () => {
+    Alert.alert(
+      'Importer données locales',
+      'Les données SQLite locales (transactions, factures, catégories, réglages) seront importées vers le serveur. Continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Importer',
+          onPress: async () => {
+            setMigrating(true);
+            setMigrateProgress({ current: 0, total: 0, label: 'Préparation...' });
+            try {
+              await importLocalData(
+                user!.id,
+                (p) => setMigrateProgress(p)
+              );
+              Alert.alert('Succès', 'Données locales importées avec succès !');
+            } catch (err) {
+              Alert.alert('Erreur', 'Échec de l\'import. Vérifiez votre connexion.');
+            } finally {
+              setMigrating(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openAddRule = () => {
@@ -454,6 +485,7 @@ export default function ParametresScreen() {
           {renderRow('list', 'Catégories', undefined, () => router.push('/categories'))}
           {renderRow('log-out', 'Déconnexion', undefined, () => setLogoutVisible(true), true)}
           {renderRow('trash', 'Réinitialiser les données', undefined, () => setResetVisible(true), true)}
+          {renderRow('cloud-upload', 'Importer données locales', undefined, handleImport, false)}
         </View>
 
         {renderSectionHeader('Règles budgétaires')}
@@ -539,6 +571,20 @@ export default function ParametresScreen() {
         onConfirm={handleReset}
         onCancel={() => setResetVisible(false)}
       />
+
+      <Modal visible={migrating} transparent animationType="fade">
+        <View style={styles.migrateOverlay}>
+          <View style={styles.migrateBox}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.migrateText}>{migrateProgress.label}</Text>
+            {migrateProgress.total > 0 && (
+              <Text style={styles.migrateSub}>
+                {migrateProgress.current} / {migrateProgress.total}
+              </Text>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <ConfirmDialog
         visible={deleteVisible}
@@ -1278,6 +1324,30 @@ function createStyles(c: ColorPalette) {
       lineHeight: 20,
       marginBottom: 4,
       paddingLeft: 16,
+    },
+    migrateOverlay: {
+      flex: 1,
+      backgroundColor: c.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    migrateBox: {
+      backgroundColor: c.surface,
+      borderRadius: 16,
+      padding: 32,
+      alignItems: 'center',
+      gap: 16,
+      marginHorizontal: 40,
+    },
+    migrateText: {
+      color: c.text,
+      fontSize: 16,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    migrateSub: {
+      color: c.textSec,
+      fontSize: 14,
     },
   });
 }
